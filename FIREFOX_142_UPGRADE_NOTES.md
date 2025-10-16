@@ -8,11 +8,13 @@
 - `patches/ghostery/Disable-Onboarding-Messages.patch` - Applied with offset
 - `patches/all-addons-private-mode.patch` - Applied with fuzz
 
-❌ **Broken Patches (need fixing):**
-- `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - CURRENT: Line 1074 changed in Firefox 142
-- All other Camoufox patches (not tested yet)
+✅ **Removed/Obsolete Patches:**
+- `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
 
-**Next Step:** Fix the search engines patch using the incremental workflow below.
+❌ **Remaining Patches (need testing):**
+- All other Camoufox patches (testing in progress)
+
+**Next Step:** Continue testing remaining patches with `make dir`.
 
 ## The Problem
 
