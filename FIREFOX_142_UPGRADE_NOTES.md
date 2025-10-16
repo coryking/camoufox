@@ -13,8 +13,11 @@
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
 
+✅ **Fixed Patches:**
+- `patches/font-hijacker.patch` - **FIXED** - Updated for Firefox 142 build system changes (CONFIGURE_SUBST_FILES block removed from layout/style/moz.build)
+
 ❌ **Remaining Patches (need testing):**
-- All other Camoufox patches (41 remaining - testing in progress)
+- All other Camoufox patches (40 remaining - testing in progress)
 
 **Next Step:** Continue testing remaining patches with `make dir`.
 
@@ -132,6 +135,22 @@ The following sections document Firefox-specific upgrade challenges and solution
 ## Firefox Upgrade Challenges
 
 When upgrading Firefox versions, patches often fail due to Firefox code changes. Here are the common patterns and solutions:
+
+### Example: Firefox 142 Font Hijacker Patch Fix
+
+The `font-hijacker.patch` failed in Firefox 142 because Firefox removed the `CONFIGURE_SUBST_FILES` block from `layout/style/moz.build` in commit `0d9b7da75a8a` (Bug 1950258).
+
+**Problem:** The patch expected to add `LOCAL_INCLUDES += ["/camoucfg"]` after the `CONFIGURE_SUBST_FILES` block at line 351, but that block no longer exists.
+
+**Solution:** Updated the patch to add the includes after the `CbindgenHeader` block at line 360 instead.
+
+**Investigation Steps:**
+1. Patch failed on `layout/style/moz.build` hunk
+2. Checked git history: `git log --oneline layout/style/moz.build`
+3. Found commit `0d9b7da75a8a` that removed `CONFIGURE_SUBST_FILES` block
+4. Manually fixed source code to add includes at new location
+5. Regenerated patch with `git diff > ../patches/font-hijacker.patch`
+6. Tested fix by reverting to checkpoint and reapplying patch
 
 ### Common Patch Failure Causes
 
