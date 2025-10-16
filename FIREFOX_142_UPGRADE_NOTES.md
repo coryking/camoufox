@@ -18,6 +18,7 @@
 - `patches/locale-spoofing.patch` - Applied with fuzz 2 and 22-line offset (implements locale spoofing)
 - `patches/media-device-spoofing.patch` - Applied with 3-line offset
 - `patches/librewolf/mozilla_dirs.patch` - Applied with fuzz and offsets (modifies Mozilla directory paths)
+- `patches/network-patches.patch` - Applied with significant offsets (25-153 lines)
 
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
