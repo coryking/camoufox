@@ -38,15 +38,21 @@ The general workflow assumes you've checkpointed the last working patch and you 
 Fixing a broken patch is where all the thinking happens.  First the rules of engagement:
 1) *DO NOT MODIFY THE PATCH FILE!!!*  We will regenerate the patch file!
 2) *MODIFY THE SOURCE CODE SO IT IS WHAT WE WANT TO SEE*.  In otherwords, *you* have to do the work of changing the source code!
-3) Once successful and all the hunks have been "recreated" in the source tree you do a `cd {ff_dir} && git diff > {patch_file}` to overwrite the patch file
+3) Once successful and all the hunks have been "recreated" in the source tree you do a `cd {ff_dir} && git diff > {patch_file}` to overwrite the patch file.  But first validate things are as-expected.
+
+Remember, the patch file might have multiple hunks and only one failed.  You are about to overwrite the patch file with a blanket `git diff` so make sure all the hunks are going to be included.  This means the actual source code needs to be "what it should be after running the entire patch".  So `git status && git diff` and analyze the output.... does the changes in the repo reflect the intent of the original patch in it's entirety?  If not, you have work to do.  If you think it's good...
+
+*STOP AND PROMPT THE HUMAN YOU THINK YOU ARE READY TO GENERATE THE NEW PATCH*
+
+explain the research you did and why you are confident you nailed it.  Remember, in many cases you did some hard work, right? (right?)
+
+Then and only then are you ready for this:
 
 Example:
 
 ```bash
 cd /home/azureuser/camoufox/camoufox-142.0.1-bluetaka.25 && git diff  > ../patches/font-hijacker.patch
 ```
-
-Remember, the patch file might have multiple hunks and only one failed.  You are about to overwrite the patch file with a blanket `git diff` so make sure all the hunks are going to be included.  This means the actual source code needs to be "what it should be after running the entire patch".
 
 [BAD EMOJI] You are *not* doing a selective diff (eg `git diff -- layout/style/moz.build > ../patches/font-hijacker.patch`)!  *NO*..  you are creating a patch file to encompass all changes to the *entire* repo!  So do a `git status` to make sure everything the original patch file changed (sans any intentional removals or additions) is included.
 4) Validate: Do a `git diff` on the patch file and confirm it changed what you expected.  Did you miss hunks that should have been patched?  If you did, you aren't ready for the next step.  Stop right now and wait for human help.  In short, you missed something!
