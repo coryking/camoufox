@@ -11,7 +11,7 @@ pacman := python python-pip p7zip go msitools wget aria2
 .PHONY: help fetch setup setup-minimal clean set-target distclean build package \
         build-launcher check-arch revert edits run bootstrap mozbootstrap dir \
         package-linux package-macos package-windows vcredist_arch patch unpatch \
-        workspace check-arg edit-cfg ff-dbg tests update-ubo-assets
+        workspace check-arg edit-cfg ff-dbg tests update-ubo-assets tagged-checkpoint
 
 help:
 	@echo "Available targets:"
@@ -20,7 +20,8 @@ help:
 	@echo "  bootstrap       - Set up build environment"
 	@echo "  mozbootstrap    - Sets up mach"
 	@echo "  dir             - Prepare Camoufox source directory with BUILD_TARGET"
-	@echo "  revert          - Kill all working changes"
+	@echo "  revert          - Kill all working changes (reset to 'unpatched' tag)"
+	@echo "  tagged-checkpoint - Save current state with reusable 'checkpoint' tag"
 	@echo "  edits           - Camoufox developer UI"
 	@echo "  build-launcher  - Build launcher"
 	@echo "  clean           - Remove build artifacts"
@@ -120,6 +121,9 @@ diff:
 
 checkpoint:
 	cd $(cf_source_dir) && git commit -m "Checkpoint" -a -uno
+
+tagged-checkpoint:
+	cd $(cf_source_dir) && git commit -m "Checkpoint" -a -uno && git tag -f checkpoint
 
 clean:
 	cd $(cf_source_dir) && git clean -fdx && ./mach clobber

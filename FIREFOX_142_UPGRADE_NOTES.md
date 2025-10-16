@@ -87,6 +87,43 @@ If this approach causes issues, we still have:
 - **Downloaded tarball**: `firefox-142.0.1-playwright.tar.gz` (Playwright's commit as tarball)
 - Can go back to manual patch fixing if needed
 
+## Git Workflow & Checkpoints
+
+The Camoufox build system uses git to track changes during development:
+
+### Key Commands
+
+- **`make revert`**: Resets to the `unpatched` tag (vanilla Firefox + Camoufox additions, before any patches)
+  ```bash
+  cd $(cf_source_dir) && git reset --hard unpatched
+  ```
+
+- **`make checkpoint`**: Creates a commit to save your current state
+  ```bash
+  cd $(cf_source_dir) && git commit -m "Checkpoint" -a -uno
+  ```
+
+- **`make tagged-checkpoint`**: Creates a checkpoint AND tags it for easy return
+  ```bash
+  cd $(cf_source_dir) && git commit -m "Checkpoint" -a -uno && git tag -f checkpoint
+  ```
+
+### Returning to Checkpoints
+
+Since regular checkpoints are just commits (not tags), you need to use git commands:
+
+```bash
+# Go back to the most recent checkpoint
+cd camoufox-142.0.1-bluetaka.25 && git reset --hard HEAD~1
+
+# Find a specific checkpoint
+cd camoufox-142.0.1-bluetaka.25 && git log --oneline
+git reset --hard <commit-hash>
+
+# Return to a tagged checkpoint (if you used make tagged-checkpoint)
+cd camoufox-142.0.1-bluetaka.25 && git reset --hard checkpoint
+```
+
 ## Related Issues
 
 - GitHub issue #230: Playwright 1.51 breaks with "method 'Browser.setContrast' is not supported"
