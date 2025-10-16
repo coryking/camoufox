@@ -25,6 +25,7 @@
 - `patches/librewolf/ui-patches/remove-branding-urlbar.patch` - Applied with 203-line offset
 
 - `patches/librewolf/ui-patches/remove-cfrprefs.patch` - **FIXED** - Updated for Firefox 142 dynamic settings system (removes CFR preferences from main.js config)
+- `patches/librewolf/ui-patches/remove-organization-policy-banner.patch` - Applied with 8-line offset
 
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
