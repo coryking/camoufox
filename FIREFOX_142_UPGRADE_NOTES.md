@@ -20,6 +20,7 @@
 - `patches/librewolf/mozilla_dirs.patch` - Applied with fuzz and offsets (modifies Mozilla directory paths)
 - `patches/network-patches.patch` - Applied with significant offsets (25-153 lines)
 - `patches/no-css-animations.patch` - Applied with 1-line offsets (disables/modifies CSS animations)
+- `patches/no-search-engines.patch` - **FIXED** - Updated for Firefox 142 UrlbarProviderInterventions.sys.mjs line number shifts
 
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
@@ -158,6 +159,23 @@ The `font-hijacker.patch` failed in Firefox 142 because Firefox removed the `CON
 4. Manually fixed source code to add includes at new location
 5. Regenerated patch with `git diff > ../patches/font-hijacker.patch`
 6. Tested fix by reverting to checkpoint and reapplying patch
+
+### Example: Firefox 142 No Search Engines Patch Fix
+
+The `no-search-engines.patch` failed in Firefox 142 because the line numbers in `browser/components/urlbar/UrlbarProviderInterventions.sys.mjs` had shifted.
+
+**Problem:** The patch expected the `isActive` method's `if` condition to start at line 494, but Firefox 142 had the condition starting at line 491, causing the patch to fail when trying to modify line 494.
+
+**Solution:** Updated the patch to modify the correct line where the `if (` statement begins, changing it to `if (true ||` to make the provider always active.
+
+**Investigation Steps:**
+1. Patch failed on `browser/components/urlbar/UrlbarProviderInterventions.sys.mjs` hunk at line 494
+2. Examined the reject file showing the expected change from `if (` to `if (true ||`
+3. Found the actual `if (` statement was at line 491, not 494
+4. Manually changed the condition to `if (true ||` to make the provider always active
+5. Verified the second hunk in `toolkit/components/search/SearchEngineSelector.sys.mjs` applied successfully
+6. Regenerated patch with `git diff > ../patches/no-search-engines.patch`
+7. Tested fix by reverting to checkpoint and reapplying patch
 
 ### Common Patch Failure Causes
 
