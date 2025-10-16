@@ -15,6 +15,7 @@
 - `patches/global-style-sheets.patch` - Applied with 20-line offset
 - `patches/librewolf/ui-patches/handlers.patch` - Applied cleanly (removes 190 lines of default handlers)
 - `patches/librewolf/ui-patches/hide-default-browser.patch` - Applied with 6-line offset
+- `patches/locale-spoofing.patch` - Applied with fuzz 2 and 22-line offset (implements locale spoofing)
 
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
