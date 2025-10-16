@@ -7,12 +7,14 @@
 - `patches/playwright/1-leak-fixes.patch` - Stealth fixes (fixed manually, navigator.webdriver + enterprise policies)
 - `patches/ghostery/Disable-Onboarding-Messages.patch` - Applied with offset
 - `patches/all-addons-private-mode.patch` - Applied with fuzz
+- `patches/anti-font-fingerprinting.patch` - Applied with offset
+- `patches/audio-context-spoofing.patch` - **FIXED** - Updated for new SPHINX_TREES line in dom/media/moz.build
 
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
 
 ❌ **Remaining Patches (need testing):**
-- All other Camoufox patches (testing in progress)
+- All other Camoufox patches (41 remaining - testing in progress)
 
 **Next Step:** Continue testing remaining patches with `make dir`.
 
@@ -103,6 +105,24 @@ If this approach causes issues, we still have:
 - **Downloaded tarball**: `firefox-142.0.1-playwright.tar.gz` (Playwright's commit as tarball)
 - Can go back to manual patch fixing if needed
 
+## Understanding the Dual-Repo Structure
+
+**Camoufox uses TWO git repositories:**
+
+1. **Camoufox Project Repo** (outer repo at `/home/azureuser/camoufox/`)
+   - Contains: patches, scripts, Makefile, documentation
+   - `.git/` tracks: patch files, build scripts, configuration
+   - **Commit patch changes here** after fixing them
+
+2. **Firefox Source Repo** (inner repo at `camoufox-142.0.1-bluetaka.25/`)
+   - Contains: Firefox source code
+   - `.git/` tracks: Firefox code + Camoufox additions
+   - Used for: generating patches via `git diff`, reverting with `make revert`
+
+**Key workflow:**
+- Fix broken Firefox files → `cd camoufox-142.0.1-bluetaka.25 && git diff > ../patches/foo.patch`
+- Commit the patch file → `cd .. && git add patches/foo.patch && git commit`
+
 ## Incremental Patch Workflow (For Upgrades)
 
 When upgrading Firefox versions, patches often fail. Here's the workflow to fix them incrementally:
@@ -138,15 +158,30 @@ make revert-checkpoint
 
 ### 3. Fix the Broken Patch
 
-Now manually fix the broken file and generate a new patch:
+**IMPORTANT: Always review the patch first!**
 
 ```bash
-# Edit the source files to make the changes the patch intended
-vim camoufox-142.0.1-bluetaka.25/path/to/broken/file.cpp
+# Step 1: Review what the patch is supposed to do
+[view] patches/path/to/broken-patch.patch
+# - Count the hunks (look for @@ markers)
+# - Note which files it modifies
+# - Understand what changes it makes
 
-# Generate new patch from your changes
+# Step 2: Manually apply the intended changes to the source files
+[edit] camoufox-142.0.1-bluetaka.25/path/to/broken/file.cpp
+
+# Step 3: Generate new patch from your changes
 cd camoufox-142.0.1-bluetaka.25
 git diff > ../patches/path/to/broken-patch.patch
+
+# Step 4: VERIFY the regenerated patch
+cd ..
+git diff patches/path/to/broken-patch.patch
+# Should show:
+# ✅ Line number changes (expected - Firefox code evolved)
+# ✅ Context changes (expected - surrounding code changed)
+# ❌ Missing hunks (BAD - you missed something!)
+# ❌ Missing files (BAD - patch didn't fully apply!)
 ```
 
 ### 4. Test the Fixed Patch
@@ -162,6 +197,25 @@ make patch ./patches/librewolf/sed-patches/allow-searchengines-non-esr.patch  # 
 ### 5. Continue Until `make dir` Works
 
 Repeat steps 1-4 for each failing patch until `make dir` completes successfully.
+
+### 6. When Deleting Obsolete Patches
+
+If a patch is obsolete (Firefox now has the feature natively):
+
+```bash
+# VERIFY what the patch does before deleting
+cat patches/path/to/patch.patch  # Review all hunks!
+
+# Check Firefox changelog/bugs to confirm it's truly obsolete
+# Example: Bug 1961839 added SearchEngines support natively
+
+# Delete the patch
+rm patches/path/to/patch.patch
+
+# Commit the deletion with explanation
+git add patches/path/to/patch.patch
+git commit -m "Remove obsolete patch - Firefox now has this natively (Bug XXXXX)"
+```
 
 ## Key Makefile Commands
 
@@ -189,29 +243,45 @@ Repeat steps 1-4 for each failing patch until `make dir` completes successfully.
 - **`make dir`**: Apply ALL patches (main command for building)
 - **`make diff`**: Show current changes (`git diff`)
 
-## Example: Fixing the leak-fixes Patch
+## Example: Fixing the audio-context-spoofing Patch
 
 ```bash
 # 1. Apply working patches and create tagged checkpoint
 make revert
 make patch ./patches/playwright/0-playwright.patch
+make patch ./patches/playwright/1-leak-fixes.patch
+# ... apply more working patches ...
 make tagged-checkpoint  # Creates 'checkpoint' tag
 
-# 2. Make manual fixes to files
-vim camoufox-142.0.1-bluetaka.25/dom/base/Navigator.cpp
-vim camoufox-142.0.1-bluetaka.25/toolkit/components/enterprisepolicies/EnterprisePoliciesParent.sys.mjs
+# 2. Review the broken patch
+less patches/audio-context-spoofing.patch
+# Found: 4 files, 1 hunk failed (dom/media/moz.build)
 
-# 3. Generate new patch
-cd camoufox-142.0.1-bluetaka.25
-git diff > ../patches/playwright/1-leak-fixes.patch
-
-# 4. Test it - return to checkpoint and try the new patch
-cd ..
+# 3. Try to apply it (will partially succeed)
 make revert-checkpoint
-make patch ./patches/playwright/1-leak-fixes.patch  # ✅ Works!
+cd camoufox-142.0.1-bluetaka.25
+patch -p1 -i ../patches/audio-context-spoofing.patch
+# 3 files succeed, 1 fails → Check .rej file to understand failure
 
-# 5. If it works, update the checkpoint to include this patch
-make tagged-checkpoint  # Update 'checkpoint' tag to include new patch
+# 4. Manually fix the failed file
+vim dom/media/moz.build  # Add the LOCAL_INCLUDES line
+
+# 5. Generate new patch
+git diff > ../patches/audio-context-spoofing.patch
+
+# 6. VERIFY the patch (back in project repo)
+cd ..
+git diff patches/audio-context-spoofing.patch
+# ✅ All 4 files present, just line numbers changed
+
+# 7. Test the fixed patch
+make revert-checkpoint
+make patch ./patches/audio-context-spoofing.patch  # ✅ Works!
+
+# 8. Update checkpoint and commit
+make tagged-checkpoint
+git add patches/audio-context-spoofing.patch
+git commit -m "Fix audio-context-spoofing patch for Firefox 142"
 ```
 
 ## Related Issues
