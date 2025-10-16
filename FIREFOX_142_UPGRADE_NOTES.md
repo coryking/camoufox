@@ -165,7 +165,7 @@ make revert-checkpoint
 [view] patches/path/to/broken-patch.patch
 # - Count the hunks (look for @@ markers)
 # - Note which files it modifies
-# - Understand what changes it makes
+# - Understand what changes it makes (this is the important and difficult step!)
 
 # Step 2: Manually apply the intended changes to the source files
 [edit] camoufox-142.0.1-bluetaka.25/path/to/broken/file.cpp
