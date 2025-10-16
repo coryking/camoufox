@@ -74,6 +74,7 @@ If you start from `unpatched` (no checkpoints exist):
 Human says "workspace is not in a clean state! clean it up!" or if you aren't sure what state the firefox git repo is but you know the last working patch, you can do the following:
 
 ```bash
+cd {repodir} && git status # Is there anything outstanding?  If yes, HALT! Summon your human!
 make revert
 make patch ./patches/patch1.patch && make patch ./patches/patch2.patch ..... # one make per successful patch.  do them all in a single line or you'll annoy the human!
 make tagged-checkpoint # boom you are in business

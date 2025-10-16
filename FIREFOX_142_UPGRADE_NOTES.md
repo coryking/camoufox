@@ -9,13 +9,12 @@
 - `patches/all-addons-private-mode.patch` - Applied with fuzz
 - `patches/anti-font-fingerprinting.patch` - Applied with offset
 - `patches/audio-context-spoofing.patch` - **FIXED** - Updated for new SPHINX_TREES line in dom/media/moz.build
+- `patches/font-hijacker.patch` - **FIXED** - Updated for Firefox 142 build system changes (CONFIGURE_SUBST_FILES block removed from layout/style/moz.build)
+
+- `patches/force-default-pointer.patch` - Applied with 23-line offset (forces browser to always report fine pointer capabilities)
 
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
-
-✅ **Fixed Patches:**
-- `patches/font-hijacker.patch` - **FIXED** - Updated for Firefox 142 build system changes (CONFIGURE_SUBST_FILES block removed from layout/style/moz.build)
-
 ❌ **Remaining Patches (need testing):**
 - All other Camoufox patches (40 remaining - testing in progress)
 
