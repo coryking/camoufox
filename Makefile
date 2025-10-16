@@ -9,7 +9,7 @@ rpms := python3 python3-devel p7zip golang msitools wget aria2
 pacman := python python-pip p7zip go msitools wget aria2
 
 .PHONY: help fetch setup setup-minimal clean set-target distclean build package \
-        build-launcher check-arch revert edits run bootstrap mozbootstrap dir \
+        build-launcher check-arch revert revert-checkpoint edits run bootstrap mozbootstrap dir \
         package-linux package-macos package-windows vcredist_arch patch unpatch \
         workspace check-arg edit-cfg ff-dbg tests update-ubo-assets tagged-checkpoint
 
@@ -20,7 +20,8 @@ help:
 	@echo "  bootstrap       - Set up build environment"
 	@echo "  mozbootstrap    - Sets up mach"
 	@echo "  dir             - Prepare Camoufox source directory with BUILD_TARGET"
-	@echo "  revert          - Kill all working changes (reset to 'unpatched' tag)"
+	@echo "  revert          - Reset to 'unpatched' tag (vanilla Firefox + additions)"
+	@echo "  revert-checkpoint - Reset to 'checkpoint' tag (return to saved checkpoint)"
 	@echo "  tagged-checkpoint - Save current state with reusable 'checkpoint' tag"
 	@echo "  edits           - Camoufox developer UI"
 	@echo "  build-launcher  - Build launcher"
@@ -98,6 +99,9 @@ ff-dbg: setup
 
 revert:
 	cd $(cf_source_dir) && git reset --hard unpatched
+
+revert-checkpoint:
+	cd $(cf_source_dir) && git reset --hard checkpoint
 
 dir:
 	@if [ ! -d $(cf_source_dir) ]; then \
