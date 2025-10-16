@@ -123,82 +123,39 @@ If this approach causes issues, we still have:
 - Fix broken Firefox files → `cd camoufox-142.0.1-bluetaka.25 && git diff > ../patches/foo.patch`
 - Commit the patch file → `cd .. && git add patches/foo.patch && git commit`
 
-## Incremental Patch Workflow (For Upgrades)
+## Patch Application Workflow
 
-When upgrading Firefox versions, patches often fail. Here's the workflow to fix them incrementally:
+For the general workflow of applying patches, fixing broken patches, and using checkpoints, see [WORKFLOW.md](../WORKFLOW.md).
 
-### 1. Apply Patches One-by-One Until Failure
+The following sections document Firefox-specific upgrade challenges and solutions.
 
-```bash
-make revert  # Start fresh
+## Firefox Upgrade Challenges
 
-# Apply patches manually until one fails
-make patch ./patches/playwright/0-playwright.patch
-make patch ./patches/playwright/1-leak-fixes.patch  # <-- This one failed!
-```
+When upgrading Firefox versions, patches often fail due to Firefox code changes. Here are the common patterns and solutions:
 
-### 2. Checkpoint Working Patches
+### Common Patch Failure Causes
 
-After applying all the **working** patches, create a tagged checkpoint:
+1. **Firefox API Changes**: Functions move, get renamed, or change signatures
+2. **Component Registration Changes**: Firefox migrates from explicit initialization to category-based registration
+3. **File Structure Changes**: Files move or get reorganized
+4. **Feature Obsolescence**: Firefox implements features natively, making patches redundant
 
-```bash
-# Only apply the patches that worked
-make revert
-make patch ./patches/playwright/0-playwright.patch
-make patch ./patches/playwright/1-leak-fixes.patch
-make patch ./patches/ghostery/Disable-Onboarding-Messages.patch
-make patch ./patches/all-addons-private-mode.patch
-make tagged-checkpoint  # Save this state with a reusable tag
-```
+### Patch Investigation Steps
 
-Now you can return to this point anytime with:
-```bash
-make revert-checkpoint
-```
+When a patch fails:
 
-### 3. Fix the Broken Patch
+1. **Review the patch intent** - understand what it's trying to accomplish
+2. **Search Firefox git history** - look for commits that changed the relevant code
+3. **Check Mozilla Bugzilla** - see if features became native
+4. **Test alternative approaches** - the same goal might be achievable differently
 
-**IMPORTANT: Always review the patch first!**
+### Example: Firefox 142 Component Migration
 
-```bash
-# Step 1: Review what the patch is supposed to do
-[view] patches/path/to/broken-patch.patch
-# - Count the hunks (look for @@ markers)
-# - Note which files it modifies
-# - Understand what changes it makes (this is the important and difficult step!)
+In Firefox 142, many components migrated from explicit initialization to category-based registration. Patches trying to remove `lazy.Component.init()` calls failed because Firefox removed those calls entirely.
 
-# Step 2: Manually apply the intended changes to the source files
-[edit] camoufox-142.0.1-bluetaka.25/path/to/broken/file.cpp
+**Solution**: Update patches to remove component registrations from `BrowserComponents.manifest` instead.
 
-# Step 3: Generate new patch from your changes
-cd camoufox-142.0.1-bluetaka.25
-git diff > ../patches/path/to/broken-patch.patch
-
-# Step 4: VERIFY the regenerated patch
-cd ..
-git diff patches/path/to/broken-patch.patch
-# Should show:
-# ✅ Line number changes (expected - Firefox code evolved)
-# ✅ Context changes (expected - surrounding code changed)
-# ❌ Missing hunks (BAD - you missed something!)
-# ❌ Missing files (BAD - patch didn't fully apply!)
-```
-
-### 4. Test the Fixed Patch
-
-```bash
-# Return to the tagged checkpoint
-make revert-checkpoint
-
-# Now test your fixed patch
-make patch ./patches/librewolf/sed-patches/allow-searchengines-non-esr.patch  # Should work now!
-```
-
-### 5. Continue Until `make dir` Works
-
-Repeat steps 1-4 for each failing patch until `make dir` completes successfully.
-
-### 6. When Deleting Obsolete Patches
+## When Deleting Obsolete Patches
 
 If a patch is obsolete (Firefox now has the feature natively):
 
@@ -217,72 +174,17 @@ git add patches/path/to/patch.patch
 git commit -m "Remove obsolete patch - Firefox now has this natively (Bug XXXXX)"
 ```
 
-## Key Makefile Commands
+For Makefile commands and general patch workflow, see [WORKFLOW.md](../WORKFLOW.md).
 
-- **`make revert`**: Reset to `unpatched` tag (vanilla Firefox + Camoufox additions)
-  ```bash
-  cd $(cf_source_dir) && git reset --hard unpatched
-  ```
+## Example: Firefox Build System Changes
 
-- **`make checkpoint`**: Commit current state (creates a git commit)
-  ```bash
-  cd $(cf_source_dir) && git commit -m "Checkpoint" -a -uno
-  ```
+When upgrading Firefox, build system changes often break patches. For example, the `audio-context-spoofing.patch` failed in Firefox 142 because the build system added a new `SPHINX_TREES` line to `dom/media/moz.build`.
 
-- **`make tagged-checkpoint`**: Commit AND tag as `checkpoint` (reusable savepoint!)
-  ```bash
-  cd $(cf_source_dir) && git commit -m "Checkpoint" -a -uno && git tag -f checkpoint
-  ```
+**Investigation**: The patch added `LOCAL_INCLUDES += ['/media/audio']` but Firefox 142 inserted a new line that shifted all the context, breaking the patch.
 
-- **`make revert-checkpoint`**: Reset to `checkpoint` tag (return to saved checkpoint)
-  ```bash
-  cd $(cf_source_dir) && git reset --hard checkpoint
-  ```
+**Solution**: Updated the patch context to match the new Firefox 142 build file structure.
 
-- **`make patch <file>`**: Apply a single patch file
-- **`make dir`**: Apply ALL patches (main command for building)
-- **`make diff`**: Show current changes (`git diff`)
-
-## Example: Fixing the audio-context-spoofing Patch
-
-```bash
-# 1. Apply working patches and create tagged checkpoint
-make revert
-make patch ./patches/playwright/0-playwright.patch
-make patch ./patches/playwright/1-leak-fixes.patch
-# ... apply more working patches ...
-make tagged-checkpoint  # Creates 'checkpoint' tag
-
-# 2. Review the broken patch
-less patches/audio-context-spoofing.patch
-# Found: 4 files, 1 hunk failed (dom/media/moz.build)
-
-# 3. Try to apply it (will partially succeed)
-make revert-checkpoint
-cd camoufox-142.0.1-bluetaka.25
-patch -p1 -i ../patches/audio-context-spoofing.patch
-# 3 files succeed, 1 fails → Check .rej file to understand failure
-
-# 4. Manually fix the failed file
-vim dom/media/moz.build  # Add the LOCAL_INCLUDES line
-
-# 5. Generate new patch
-git diff > ../patches/audio-context-spoofing.patch
-
-# 6. VERIFY the patch (back in project repo)
-cd ..
-git diff patches/audio-context-spoofing.patch
-# ✅ All 4 files present, just line numbers changed
-
-# 7. Test the fixed patch
-make revert-checkpoint
-make patch ./patches/audio-context-spoofing.patch  # ✅ Works!
-
-# 8. Update checkpoint and commit
-make tagged-checkpoint
-git add patches/audio-context-spoofing.patch
-git commit -m "Fix audio-context-spoofing patch for Firefox 142"
-```
+**General Pattern**: When patches fail on build files (`.mozbuild`, `Makefile.*`, etc.), always check if Firefox added/removed/changed lines that affect the patch context.
 
 ## Related Issues
 
