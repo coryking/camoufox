@@ -1,6 +1,28 @@
 # Overview
 
-The name of the game is to get all the patches to firefox applied successfully *and* have firefox compile.  Why?  So this variant, Camoufox, remains stealthy.
+The name of the game is to get all the patches to firefox applied successfully *and* have firefox compile.  Why?  **So this variant, Camoufox, remains stealthy and undetectable.**
+
+## Critical: Stealth is Everything
+
+**EVERY PATCH EXISTS FOR A REASON - TO KEEP CAMOUFOX STEALTHY**
+
+When a patch fails, you MUST understand:
+1. **What is the stealth goal?** What fingerprinting vector or detection method does this patch prevent?
+2. **How does the original patch achieve that goal?** What specific code changes make Camoufox harder to detect?
+3. **Has Firefox's architecture changed?** The code may have moved, but the stealth requirement hasn't.
+4. **Replicate the intent, not just the code.** If Firefox changed how preferences work, you need to hide the same preferences in the new system.
+
+**NEVER just delete a patch because it fails.** That's like removing your car's brakes because they squeak. The stealth requirement still exists - you just need to find where Firefox moved the code and apply the same defensive changes there.
+
+### Camoufox's Purpose
+
+Camoufox makes Firefox look like a normal user's browser to anti-bot systems. Patches do things like:
+- Hide preferences that reveal automation (e.g., CFR recommendations that normal users see but are disabled in Camoufox)
+- Spoof fingerprinting APIs (geolocation, fonts, media devices, canvas, WebGL)
+- Remove telltale signs of modification (custom user-agent strings, automation flags)
+- Disable features that leak information (network timing, hardware specs)
+
+If a website can detect ANY mismatch between what the browser claims and what the UI/behavior shows, Camoufox is burned.
 
 The camoufox root contains a Makefile and a ton of patches.  They are applied in alphabetical order by filename (not by directory structure). If there are actual dependencies between patches, they must be satisfied by this alphabetical ordering.
 
@@ -36,8 +58,34 @@ The general workflow assumes you've checkpointed the last working patch and you 
 
 ## Fixing a broken patch
 Fixing a broken patch is where all the thinking happens.  First the rules of engagement:
+
+### STEP ZERO: UNDERSTAND THE STEALTH INTENT
+**Before touching ANY code, answer these questions:**
+
+1. **What stealth problem does this patch solve?**
+   - Read the patch file. What is it modifying?
+   - Is it hiding UI elements? Spoofing APIs? Removing telemetry?
+   - Example: `remove-cfrprefs.patch` hides CFR recommendation checkboxes from preferences
+
+2. **Why is this a stealth issue?**
+   - What can websites detect if we DON'T apply this patch?
+   - Example: CFR prefs are disabled in `camoufox.cfg`, but if the UI checkboxes are visible, automation can detect the mismatch: "disabled functionality with visible controls = modified browser"
+
+3. **Has Firefox moved or refactored this code?**
+   - Search the Firefox git history for the files being patched
+   - Did they migrate from static XHTML to dynamic JS configs?
+   - Did they rename functions or move them to different modules?
+   - The STEALTH REQUIREMENT hasn't changed - only Firefox's architecture changed
+
+4. **How do we achieve the same stealth goal in the new Firefox code?**
+   - If they moved preferences from XHTML to JS configs, patch the JS config
+   - If they renamed an API, patch the new API name
+   - If they split functionality across files, patch all the files
+   - **The goal is NOT to make the old patch work - it's to achieve the same stealth in the new Firefox**
+
+### Now the code rules:
 1) *DO NOT MODIFY THE PATCH FILE!!!*  We will regenerate the patch file!
-2) *MODIFY THE SOURCE CODE SO IT IS WHAT WE WANT TO SEE*.  In otherwords, *you* have to do the work of changing the source code!
+2) *MODIFY THE SOURCE CODE SO IT IS WHAT WE WANT TO SEE*.  In otherwords, *you* have to do the work of changing the source code to achieve the stealth goal!
 3) Once successful and all the hunks have been "recreated" in the source tree you do a `cd {ff_dir} && git diff > {patch_file}` to overwrite the patch file.  But first validate things are as-expected.
 
 Remember, the patch file might have multiple hunks and only one failed.  You are about to overwrite the patch file with a blanket `git diff` so make sure all the hunks are going to be included.  This means the actual source code needs to be "what it should be after running the entire patch".  So `git status && git diff` and analyze the output.... does the changes in the repo reflect the intent of the original patch in it's entirety?  If not, you have work to do.  If you think it's good...
@@ -62,12 +110,39 @@ cd /home/azureuser/camoufox/camoufox-142.0.1-bluetaka.25 && git diff  > ../patch
 8) Checkpoint: Do a `make tagged-checkpoint` in the firefox repo since the repo is now at a working good state.
 9) Next: `cd /home/azureuser/camoufox && python3 scripts/next_patch.py patches/font-hijacker.patch` to find what's next
 
-### Here is some guidelines:
+### Investigation Guidelines:
 
-1) Look at the patch file and see what it is trying to accomplish.
-2) Why did it fail?  Was it something like mismatched line?  Did firefox change something?
-3) If they changed something, do a search through the git history in the firefox source directory looking for what caused the change....  try to figure it out.  If you can't, you need to escalate to a human.
-4) Update this doc if you have any new insights
+1) **Read the patch file and understand the stealth goal**
+   - What is it modifying? UI elements? API functions? Build configs?
+   - What fingerprinting vector does this prevent?
+   - What would an anti-bot system detect without this patch?
+
+2) **Determine why it failed**
+   - Mismatched line numbers? (Firefox added/removed code nearby)
+   - File doesn't exist? (Firefox moved/renamed the file)
+   - Function doesn't exist? (Firefox refactored the API)
+
+3) **Research Firefox's changes**
+   - Search git history for the files being patched
+   - Look for architectural changes (e.g., XHTML → JS configs, static → dynamic)
+   - Find where the functionality moved in the new Firefox
+
+4) **Apply the stealth fix to the new location**
+   - Don't just make the old patch apply - achieve the same stealth goal in the new code
+   - Example: If preferences moved from `main.inc.xhtml` to `main.js` config, patch `main.js`
+
+5) **Verify the stealth goal is achieved**
+   - The UI should match what a normal user would see
+   - Disabled features should not have visible controls
+   - Spoofed APIs should return consistent values
+   - No telltale signs of modification should be detectable
+
+6) **Only delete a patch if Firefox implements the stealth feature natively**
+   - Example: If Firefox now hides CFR prefs by default for all users
+   - Verify by checking Firefox's default config and UI
+   - Document why the feature is now native in `FIREFOX_142_UPGRADE_NOTES.md`
+
+7) Update this doc if you have any new insights
 
 ## Initial Workflow
 If you start from `unpatched` (no checkpoints exist):
