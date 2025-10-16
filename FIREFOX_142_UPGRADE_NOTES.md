@@ -13,6 +13,7 @@
 - `patches/force-default-pointer.patch` - Applied with 23-line offset (forces browser to always report fine pointer capabilities)
 - `patches/geolocation-spoofing.patch` - **FIXED** - Updated for Firefox 142 GTK configuration block changes in dom/geolocation/moz.build
 - `patches/global-style-sheets.patch` - Applied with 20-line offset
+- `patches/librewolf/ui-patches/handlers.patch` - Applied cleanly (removes 190 lines of default handlers)
 
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
