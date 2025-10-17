@@ -242,3 +242,4 @@ When upgrading Firefox, build system changes often break patches. For example, t
 - This is why the previous maintainer merged Playwright patches in March 2025
 
 - `patches/librewolf/rust-gentoo-musl.patch` - Applied with fuzz 1 and 8-line offset
+- `patches/screen-hijacker.patch` - Applied with offsets (screen fingerprinting spoofing)
