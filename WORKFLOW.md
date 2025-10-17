@@ -52,7 +52,7 @@ The general workflow assumes you've checkpointed the last working patch and you 
 1) Find next: `cd /home/azureuser/camoufox && python3 scripts/next_patch.py patches/<last-patch>.patch`
 2) Apply it: `make patch <next-patchfile>`
 3) Did it work?  Great!  Do a `make tagged-checkpoint` and go back to step 1
-4) If it didn't work, then you need to figure out why.  This is the hard part that requires actual "thinking".  See the "Fixing a broken patch" below
+4) If it didn't work, then you need to figure out why.  IF YOU GET HERE, *STOP AND WAIT FOR HUMAN INTERVENTION!  THEY MAY WANT TO SWITCH LLM MODELS!!!!*  This is the hard part that requires actual "thinking".  See the "Fixing a broken patch" below.  The human will no doubt want to summon powerful models to do this....
 5) Once you've walked through all the patches and they all work, do a `make revert && make dev`
 6) I don't know what happens at this point.... so stop and say "hi".
 

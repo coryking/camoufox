@@ -29,6 +29,7 @@
 
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
+- `patches/librewolf/remove_addons.patch` - **DELETED** - LibreWolf privacy patch that conflicts with Camoufox stealth mission (removing "Report Broken Site" makes browser detectably different from vanilla Firefox).  Plus the entire subsystem in firefox has changed and updating to that is out of scope for this mission.
 ❌ **Remaining Patches (need testing):**
 - All other Camoufox patches (40 remaining - testing in progress)
 
