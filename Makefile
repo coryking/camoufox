@@ -9,7 +9,7 @@ rpms := python3 python3-devel p7zip golang msitools wget aria2
 pacman := python python-pip p7zip go msitools wget aria2
 
 .PHONY: help fetch setup setup-minimal clean set-target distclean build package \
-        build-launcher check-arch revert revert-checkpoint edits run bootstrap mozbootstrap dir \
+        build-launcher check-arch revert revert-checkpoint refresh-baseline edits run bootstrap mozbootstrap dir \
         package-linux package-macos package-windows vcredist_arch patch unpatch \
         workspace check-arg edit-cfg ff-dbg tests update-ubo-assets tagged-checkpoint
 
@@ -22,6 +22,7 @@ help:
 	@echo "  dir             - Prepare Camoufox source directory with BUILD_TARGET"
 	@echo "  revert          - Reset to 'unpatched' tag (vanilla Firefox + additions)"
 	@echo "  revert-checkpoint - Reset to 'checkpoint' tag (return to saved checkpoint)"
+	@echo "  refresh-baseline - Rebuild 'unpatched' tag with latest additions/ changes"
 	@echo "  tagged-checkpoint - Save current state with reusable 'checkpoint' tag"
 	@echo "  edits           - Camoufox developer UI"
 	@echo "  build-launcher  - Build launcher"
@@ -102,6 +103,24 @@ revert:
 
 revert-checkpoint:
 	cd $(cf_source_dir) && git reset --hard checkpoint && rm -f _READY browser/app/camoufox.exe.manifest
+
+refresh-baseline:
+	@echo "Rebuilding 'unpatched' baseline with latest additions..."
+	@cd $(cf_source_dir) && \
+		if ! git rev-parse --verify unpatched^ >/dev/null 2>&1; then \
+			echo "ERROR: Cannot find parent of 'unpatched' tag."; \
+			echo "This target requires a Firefox git repository with history,"; \
+			echo "not a tarball-based setup. Your setup is incompatible."; \
+			exit 1; \
+		fi
+	cd $(cf_source_dir) && \
+		git reset --hard unpatched^ && \
+		git clean -dxf && \
+		bash ../scripts/copy-additions.sh $(version) $(release) && \
+		git add -A && \
+		git commit -m "Add Camoufox additions (Firefox $(version) compatibility)" && \
+		git tag -f -a unpatched -m "Initial commit with additions"
+	@echo "✓ Baseline refreshed. 'unpatched' tag updated with latest additions."
 
 dir:
 	@if [ ! -d $(cf_source_dir) ]; then \
