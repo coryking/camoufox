@@ -4,11 +4,11 @@
 
 "use strict";
 
-const {Helper, EventWatcher} = ChromeUtils.import('chrome://juggler/content/Helper.js');
-const {NetUtil} = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
-const {NetworkObserver, PageNetwork} = ChromeUtils.import('chrome://juggler/content/NetworkObserver.js');
-const {PageTarget} = ChromeUtils.import('chrome://juggler/content/TargetRegistry.js');
-const {setTimeout} = ChromeUtils.import('resource://gre/modules/Timer.jsm');
+import { Helper, EventWatcher } from "chrome://juggler/content/Helper.sys.mjs";
+import { NetUtil } from "resource://gre/modules/NetUtil.sys.mjs";
+import { NetworkObserver, PageNetwork } from "chrome://juggler/content/NetworkObserver.sys.mjs";
+import { PageTarget } from "chrome://juggler/content/TargetRegistry.sys.mjs";
+import { setTimeout } from "resource://gre/modules/Timer.sys.mjs";
 
 const Cc = Components.classes;
 const Ci = Components.interfaces;
@@ -721,5 +721,4 @@ class PageHandler {
   }
 }
 
-var EXPORTED_SYMBOLS = ['PageHandler'];
-this.PageHandler = PageHandler;
+export { PageHandler };

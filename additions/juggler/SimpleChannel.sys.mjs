@@ -77,9 +77,10 @@ class SimpleChannel {
     this._setTimeout(() => this._deliverBufferedIncomingMessages(), 0);
   }
 
-  _setTimeout(cb, timeout) {
+  async _setTimeout(cb, timeout) {
     // Lazy load on first call.
-    this._setTimeout = ChromeUtils.import('resource://gre/modules/Timer.jsm').setTimeout;
+    const { setTimeout } = await import('resource://gre/modules/Timer.sys.mjs');
+    this._setTimeout = setTimeout;
     this._setTimeout(cb, timeout);
   }
 
@@ -252,5 +253,4 @@ class SimpleChannel {
   }
 }
 
-var EXPORTED_SYMBOLS = ['SimpleChannel'];
-this.SimpleChannel = SimpleChannel;
+export { SimpleChannel };

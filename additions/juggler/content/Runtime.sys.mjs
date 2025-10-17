@@ -691,5 +691,4 @@ function emitEvent(event, ...args) {
     listener.call(null, ...args);
 }
 
-var EXPORTED_SYMBOLS = ['Runtime'];
-this.Runtime = Runtime;
+export { Runtime };
