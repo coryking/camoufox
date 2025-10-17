@@ -244,3 +244,4 @@ When upgrading Firefox, build system changes often break patches. For example, t
 - `patches/librewolf/rust-gentoo-musl.patch` - Applied with fuzz 1 and 8-line offset
 - `patches/screen-hijacker.patch` - Applied with offsets (screen fingerprinting spoofing)
 - `patches/shadow-root-bypass.patch` - Applied with -3-line offset
+- `patches/librewolf/sed-patches/stop-undesired-requests.patch` - Applied with fuzz and offsets
