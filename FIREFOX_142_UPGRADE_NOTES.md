@@ -26,6 +26,7 @@
 
 - `patches/librewolf/ui-patches/remove-cfrprefs.patch` - **FIXED** - Updated for Firefox 142 dynamic settings system (removes CFR preferences from main.js config)
 - `patches/librewolf/ui-patches/remove-organization-policy-banner.patch` - Applied with 8-line offset
+- `patches/camoufox-branding.patch` -Added new patch to fix the MOZ_APP_VENDOR, MOZ_APP_PROFILE build error y adapting to Firefox 142's configuration system changes (Bug 1898177), following the "broken patch" workflow for creating patches.
 
 ✅ **Removed/Obsolete Patches:**
 - `patches/librewolf/sed-patches/allow-searchengines-non-esr.patch` - **DELETED** - Firefox 142 natively supports SearchEngines in non-ESR builds (Bug 1961839, April 2025)
