@@ -56,6 +56,16 @@ The general workflow assumes you've checkpointed the last working patch and you 
 5) Once you've walked through all the patches and they all work, do a `make revert && make dev`
 6) I don't know what happens at this point.... so stop and say "hi".
 
+### Shortcut:
+
+Most of these patches will probably successfully apply... so you can "shortcut" the workflow into a single "opportunistic" command line.  When starting from a tagged checkpoint or the untagged branch you can do something like:
+
+```bash
+cd /home/azureuser/camoufox && make patch patches/webgl-spoofing.patch && make tagged-checkpoint && git add FIREFOX_142_UPGRADE_NOTES.md && echo "- \`patches/webgl-spoofing.patch\` - Applied (WebGL fingerprinting spoofing)" >> FIREFOX_142_UPGRADE_NOTES.md && git add FIREFOX_142_UPGRADE_NOTES.md && git commit -m "Document successful application of webgl-spoofing.patch" && python3 scripts/next_patch.py patches/webgl-spoofing.patch
+```
+
+it will apply the patch, tag the checkpoint, add notes, commit the mess and then print out the next patch to apply.  If `make patch` fails, it will fail before tagging the checkpoint. Just keep doing this over and over until either something fails or there are no more patches to apply!
+
 ## Fixing a broken patch
 Fixing a broken patch is where all the thinking happens.  First the rules of engagement:
 
