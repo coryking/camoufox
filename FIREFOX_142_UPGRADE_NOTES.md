@@ -246,3 +246,4 @@ When upgrading Firefox, build system changes often break patches. For example, t
 - `patches/shadow-root-bypass.patch` - Applied with -3-line offset
 - `patches/librewolf/sed-patches/stop-undesired-requests.patch` - Applied with fuzz and offsets
 - `patches/timezone-spoofing.patch` - Applied with -2-line offset (timezone fingerprinting spoofing)
+- `patches/librewolf/urlbarprovider-interventions.patch` - Applied with -5-line offset
