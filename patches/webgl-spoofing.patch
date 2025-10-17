@@ -1,21 +1,21 @@
 diff --git a/dom/canvas/ClientWebGLContext.cpp b/dom/canvas/ClientWebGLContext.cpp
-index ba79bca2c3b1..98db9b9aee5c 100644
+index ba79bca2c3b1..918ec811e2df 100644
 --- a/dom/canvas/ClientWebGLContext.cpp
 +++ b/dom/canvas/ClientWebGLContext.cpp
 @@ -4,6 +4,9 @@
   * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-
+ 
  #include "ClientWebGLContext.h"
 +#include "MaskConfig.hpp"
 +#include <algorithm>
 +#include <cstddef>
-
+ 
  #include <bitset>
  #include <fmt/format.h>
 @@ -752,6 +755,13 @@ void ClientWebGLContext::SetUnpackColorSpace(
    Run<RPROC(SetUnpackColorSpace)>(*mUnpackColorSpace);
  }
-
+ 
 +bool ClientWebGLContext::MBoolVal(const std::string& key, bool defaultValue) {
 +  if (auto value = MaskConfig::GetAttribute<bool>(key, mIsWebGL2);
 +      value.has_value())
@@ -27,9 +27,9 @@ index ba79bca2c3b1..98db9b9aee5c 100644
      dom::Nullable<dom::WebGLContextAttributes>& retval) {
    retval.SetNull();
 @@ -762,15 +772,40 @@ void ClientWebGLContext::GetContextAttributes(
-
+ 
    const auto& options = mNotLost->info.options;
-
+ 
 -  result.mAlpha.Construct(options.alpha);
 -  result.mDepth = options.depth;
 -  result.mStencil = options.stencil;
@@ -74,12 +74,12 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +  result.mForceSoftwareRendering = MBoolVal(
 +      "forceSoftwareRendering", options.forceSoftwareRendering);
  }
-
+ 
  // -----------------------
 @@ -988,18 +1023,28 @@ bool ClientWebGLContext::CreateHostContext(const uvec2& requestedSize) {
  std::unordered_map<GLenum, bool> webgl::MakeIsEnabledMap(const bool webgl2) {
    auto ret = std::unordered_map<GLenum, bool>{};
-
+ 
 -  ret[LOCAL_GL_BLEND] = false;
 -  ret[LOCAL_GL_CULL_FACE] = false;
 -  ret[LOCAL_GL_DEPTH_TEST] = false;
@@ -107,17 +107,17 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +      MaskConfig::MParamGL<bool>(LOCAL_GL_SCISSOR_TEST, false, webgl2);
 +  ret[LOCAL_GL_STENCIL_TEST] =
 +      MaskConfig::MParamGL<bool>(LOCAL_GL_STENCIL_TEST, false, webgl2);
-
+ 
    if (webgl2) {
 -    ret[LOCAL_GL_RASTERIZER_DISCARD] = false;
 +    ret[LOCAL_GL_RASTERIZER_DISCARD] =
 +        MaskConfig::MParamGL<bool>(LOCAL_GL_RASTERIZER_DISCARD, false, webgl2);
    }
-
+ 
    return ret;
 @@ -2073,6 +2118,57 @@ void ClientWebGLContext::GetParameter(JSContext* cx, GLenum pname,
    const auto& state = State();
-
+ 
    // -
 +  std::optional<
 +      std::variant<int64_t, bool, double, std::string, std::nullptr_t>>
@@ -170,11 +170,11 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +        return;
 +      }
 +  }
-
+ 
    const auto fnSetRetval_Buffer = [&](const GLenum target) {
      const auto buffer = *MaybeFind(state.mBoundBufferByTarget, target);
 @@ -2178,49 +2274,84 @@ void ClientWebGLContext::GetParameter(JSContext* cx, GLenum pname,
-
+ 
      // 2 floats
      case LOCAL_GL_DEPTH_RANGE:
 -      retval.set(Create<dom::Float32Array>(cx, this, state.mDepthRange, rv));
@@ -184,7 +184,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +                                                       mIsWebGL2),
 +          rv));
        return;
-
+ 
      case LOCAL_GL_ALIASED_POINT_SIZE_RANGE:
 -      retval.set(
 -          Create<dom::Float32Array>(cx, this, limits.pointSizeRange, rv));
@@ -194,7 +194,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +              pname, limits.pointSizeRange, mIsWebGL2),
 +          rv));
        return;
-
+ 
      case LOCAL_GL_ALIASED_LINE_WIDTH_RANGE:
 -      retval.set(
 -          Create<dom::Float32Array>(cx, this, limits.lineWidthRange, rv));
@@ -204,7 +204,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +              pname, limits.lineWidthRange, mIsWebGL2),
 +          rv));
        return;
-
+ 
      // 4 floats
      case LOCAL_GL_COLOR_CLEAR_VALUE:
 -      retval.set(Create<dom::Float32Array>(cx, this, state.mClearColor, rv));
@@ -214,7 +214,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +                                                       mIsWebGL2),
 +          rv));
        return;
-
+ 
      case LOCAL_GL_BLEND_COLOR:
 -      retval.set(Create<dom::Float32Array>(cx, this, state.mBlendColor, rv));
 +      retval.set(Create<dom::Float32Array>(
@@ -223,7 +223,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +                                                       mIsWebGL2),
 +          rv));
        return;
-
+ 
      // 2 ints
      case LOCAL_GL_MAX_VIEWPORT_DIMS: {
        auto maxViewportDim = BitwiseCast<int32_t>(limits.maxViewportDim);
@@ -236,7 +236,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +          rv));
        return;
      }
-
+ 
      // 4 ints
      case LOCAL_GL_SCISSOR_BOX:
 -      retval.set(Create<dom::Int32Array>(cx, this, state.mScissor, rv));
@@ -246,7 +246,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +                                                         mIsWebGL2),
 +          rv));
        return;
-
+ 
      case LOCAL_GL_VIEWPORT:
 -      retval.set(Create<dom::Int32Array>(cx, this, state.mViewport, rv));
 +      retval.set(Create<dom::Int32Array>(
@@ -255,7 +255,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +                                                         mIsWebGL2),
 +          rv));
        return;
-
+ 
 -    // any
      case LOCAL_GL_COMPRESSED_TEXTURE_FORMATS:
 -      retval.set(Create<dom::Uint32Array>(cx, this,
@@ -270,9 +270,9 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +          rv));
        return;
    }
-
+ 
 @@ -2400,6 +2531,10 @@ void ClientWebGLContext::GetParameter(JSContext* cx, GLenum pname,
-
+ 
          switch (pname) {
            case dom::WEBGL_debug_renderer_info_Binding::UNMASKED_RENDERER_WEBGL:
 +            if (auto value = MaskConfig::GetString("webGl:renderer")) {
@@ -284,7 +284,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
              } else {
 @@ -2411,6 +2546,10 @@ void ClientWebGLContext::GetParameter(JSContext* cx, GLenum pname,
              break;
-
+ 
            case dom::WEBGL_debug_renderer_info_Binding::UNMASKED_VENDOR_WEBGL:
 +            if (auto value = MaskConfig::GetString("webGl:vendor")) {
 +              ret = Some(value.value());
@@ -307,16 +307,16 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 @@ -2898,6 +3039,24 @@ ClientWebGLContext::GetShaderPrecisionFormat(const GLenum shadertype,
    const FuncScope funcScope(*this, "getShaderPrecisionFormat");
    if (IsContextLost()) return nullptr;
-
+ 
 +  // Check for spoofed value
 +  if (auto value =
 +          MaskConfig::MShaderData(shadertype, precisiontype, mIsWebGL2)) {
 +    const auto& format = value.value();
 +    return AsAddRefed(new WebGLShaderPrecisionFormatJS(
 +        webgl::ShaderPrecisionFormat{
-+            format[0],  // rangeMin
-+            format[1],  // rangeMax
-+            format[2]   // precision
++            static_cast<uint8_t>(format[0]),  // rangeMin
++            static_cast<uint8_t>(format[1]),  // rangeMax
++            static_cast<uint8_t>(format[2])   // precision
 +        }));
 +  }
 +  // Check if block if not defined is on
@@ -332,7 +332,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 @@ -5918,6 +6077,17 @@ bool ClientWebGLContext::IsSupported(const WebGLExtensionID ext,
      return false;
    }
-
+ 
 +  if (std::vector<std::string> maskValues =
 +          MaskConfig::GetStringList(mIsWebGL2 ? "webGl2:supportedExtensions"
 +                                              : "webGl:supportedExtensions");
@@ -349,7 +349,7 @@ index ba79bca2c3b1..98db9b9aee5c 100644
  }
 @@ -5929,6 +6099,18 @@ void ClientWebGLContext::GetSupportedExtensions(
    if (!mNotLost) return;
-
+ 
    auto& retarr = retval.SetValue();
 +
 +  // Implement separately to prevent O(n^2) timing
@@ -365,27 +365,27 @@ index ba79bca2c3b1..98db9b9aee5c 100644
 +
    for (const auto i : MakeEnumeratedRange(WebGLExtensionID::Max)) {
      if (!IsSupported(i, callerType)) continue;
-
+ 
 diff --git a/dom/canvas/ClientWebGLContext.h b/dom/canvas/ClientWebGLContext.h
 index 14787aafa7d1..139f6a266957 100644
 --- a/dom/canvas/ClientWebGLContext.h
 +++ b/dom/canvas/ClientWebGLContext.h
 @@ -1075,6 +1075,9 @@ class ClientWebGLContext final : public nsICanvasRenderingContextInternal,
-
+ 
    // -
-
+ 
 +  // Helper to get booleans set in MaskConfig
 +  bool MBoolVal(const std::string& key, bool defaultValue);
 +
    void GetContextAttributes(dom::Nullable<dom::WebGLContextAttributes>& retval);
-
+ 
   private:
 diff --git a/dom/canvas/moz.build b/dom/canvas/moz.build
 index 4a774aed1938..4d8ea9ff8a05 100644
 --- a/dom/canvas/moz.build
 +++ b/dom/canvas/moz.build
 @@ -228,3 +228,6 @@ if CONFIG["CC_TYPE"] == "gcc":
-
+ 
  # Add libFuzzer configuration directives
  include("/tools/fuzzing/libfuzzer-config.mozbuild")
 +
