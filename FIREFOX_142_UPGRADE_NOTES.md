@@ -245,3 +245,4 @@ When upgrading Firefox, build system changes often break patches. For example, t
 - `patches/screen-hijacker.patch` - Applied with offsets (screen fingerprinting spoofing)
 - `patches/shadow-root-bypass.patch` - Applied with -3-line offset
 - `patches/librewolf/sed-patches/stop-undesired-requests.patch` - Applied with fuzz and offsets
+- `patches/timezone-spoofing.patch` - Applied with -2-line offset (timezone fingerprinting spoofing)
