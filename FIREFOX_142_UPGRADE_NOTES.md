@@ -241,3 +241,4 @@ When upgrading Firefox, build system changes often break patches. For example, t
 - GitHub issue #230: Playwright 1.51 breaks with "method 'Browser.setContrast' is not supported"
 - This is why the previous maintainer merged Playwright patches in March 2025
 
+- `patches/librewolf/rust-gentoo-musl.patch` - Applied with fuzz 1 and 8-line offset
