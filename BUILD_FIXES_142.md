@@ -94,9 +94,34 @@ webgl::ShaderPrecisionFormat{
 
 ---
 
+### 2. nsScreencastService.cpp - Missing Include
+**File**: `juggler/screencast/nsScreencastService.cpp`
+**Line**: 47
+**Location**: `additions/juggler/screencast/nsScreencastService.cpp` (not a patch, but an added file)
+**Error**: `use of undeclared identifier 'gfxPlatform'`
+
+**Root Cause**: The file uses `gfxPlatform::IsHeadless()` but is missing the include for `gfxPlatform.h`.
+
+**Fix Required**: Add include near top of file:
+```cpp
+#include "gfxPlatform.h"
+```
+
+**Status**: ✅ Fixed - Added `#include "gfxPlatform.h"` after HeadlessWindowCapturer.h include
+
+**Note**: This is in the `additions` directory (not a patch). Fixed in both locations:
+- ✅ `camoufox-142.0.1-bluetaka.25/juggler/screencast/nsScreencastService.cpp` (Firefox source)
+- ✅ `additions/juggler/screencast/nsScreencastService.cpp` (Camoufox repo)
+
+For additions files, fix them directly and commit the change to the Camoufox repo. No patch regeneration needed.
+
+---
+
 ## Summary
-- Total errors found: 1
-- Total errors fixed: 1
+- Total errors found: 2
+- Total errors fixed: 2
 - Patches requiring regeneration: 1
   - `patches/webgl-spoofing.patch`
+- Additions requiring updates: 1
+  - `additions/juggler/screencast/nsScreencastService.cpp`
 
