@@ -575,7 +575,7 @@ class PageAgent {
     // We crash by using js-ctypes and dereferencing
     // a bad pointer. The crash should happen immediately
     // upon loading this frame script.
-    import {  ctypes  } from "resource://gre/modules/ctypes.sys.mjs";
+    const { ctypes } = await import("resource://gre/modules/ctypes.sys.mjs");
     ChromeUtils.privateNoteIntentionalCrash();
     const zero = new ctypes.intptr_t(8);
     const badptr = ctypes.cast(zero, ctypes.PointerType(ctypes.int32_t));

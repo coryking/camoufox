@@ -22,10 +22,10 @@ const Ci = Components.interfaces;
 ActorManagerParent.addJSWindowActors({
   JugglerFrame: {
     parent: {
-      moduleURI: 'chrome://juggler/content/JugglerFrameParent.sys.mjs',
+      esModuleURI: 'chrome://juggler/content/JugglerFrameParent.sys.mjs',
     },
     child: {
-      moduleURI: 'chrome://juggler/content/content/JugglerFrameChild.sys.mjs',
+      esModuleURI: 'chrome://juggler/content/content/JugglerFrameChild.sys.mjs',
       events: {
         // Normally, we instantiate an actor when a new window is created.
         DOMWindowCreated: {},
