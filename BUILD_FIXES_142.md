@@ -117,11 +117,108 @@ For additions files, fix them directly and commit the change to the Camoufox rep
 
 ---
 
+### 3. Juggler ESM Migration - Actor Registration
+**Files**: `additions/juggler/components/Juggler.sys.mjs`
+**Lines**: 24-28
+**Error**: `NotSupportedError: ChromeUtils.registerWindowActor: Either moduleURI or esModuleURI is required.`
+
+**Root Cause**: Firefox 142 migrated from JSM (JavaScript Modules) to ESM (ECMAScript Modules). Actor registration now requires `esModuleURI` instead of `moduleURI` for `.sys.mjs` files.
+
+**Fix Required**: Change actor registration property names:
+```javascript
+ActorManagerParent.addJSWindowActors({
+  JugglerFrame: {
+    parent: {
+      esModuleURI: 'chrome://juggler/content/JugglerFrameParent.sys.mjs',  // was: moduleURI
+    },
+    child: {
+      esModuleURI: 'chrome://juggler/content/content/JugglerFrameChild.sys.mjs',  // was: moduleURI
+```
+
+**Status**: ✅ Fixed - Changed `moduleURI` to `esModuleURI` for both parent and child actors
+
+**Note**: This is in `additions/juggler/` so the fix was committed directly to the Camoufox repo.
+
+---
+
+### 4. Juggler ESM Migration - Dynamic Import Syntax
+**File**: `additions/juggler/content/PageAgent.sys.mjs`
+**Line**: 578
+**Error**: `SyntaxError: import declarations may only appear at top level of a module`
+
+**Root Cause**: ESM modules don't allow static `import` statements inside functions. The `_crash()` method used a static import which worked in JSM but fails in ESM.
+
+**Fix Required**: Use dynamic import syntax:
+```javascript
+async _crash() {
+  // Old (JSM):
+  // import { ctypes } from "resource://gre/modules/ctypes.sys.mjs";
+
+  // New (ESM):
+  const { ctypes } = await import("resource://gre/modules/ctypes.sys.mjs");
+```
+
+**Status**: ✅ Fixed - Changed static import to dynamic `import()` function call
+
+**Note**: This is in `additions/juggler/` so the fix was committed directly to the Camoufox repo.
+
+---
+
+### 5. Juggler ESM Migration - Debugger Initialization
+**File**: `additions/juggler/content/Runtime.sys.mjs`
+**Lines**: 9-13
+**Error**: `TypeError: can't access property "Debugger" of undefined`
+
+**Root Cause**: In ESM modules, `this` is `undefined` at the top level (unlike JSM where `this` refers to the global object). Also, `ChromeUtils.import()` is deprecated in favor of `ChromeUtils.importESModule()`.
+
+**Fix Required**: Multiple ESM compatibility fixes:
+```javascript
+// Old (JSM):
+if (!this.Debugger) {
+  const {addDebuggerToGlobal} = ChromeUtils.import("resource://gre/modules/jsdebugger.jsm", {});
+  addDebuggerToGlobal(Components.utils.getGlobalForObject(this));
+}
+
+// New (ESM):
+if (typeof Debugger === 'undefined') {
+  const {addDebuggerToGlobal} = ChromeUtils.importESModule("resource://gre/modules/jsdebugger.sys.mjs");
+  addDebuggerToGlobal(globalThis);
+}
+```
+
+**Changes**:
+1. `!this.Debugger` → `typeof Debugger === 'undefined'`
+2. `ChromeUtils.import()` → `ChromeUtils.importESModule()`
+3. `.jsm` → `.sys.mjs`
+4. `Components.utils.getGlobalForObject(this)` → `globalThis`
+
+**Status**: ✅ Fixed - Updated to ESM-compatible Debugger initialization
+
+**Note**: This is in `additions/juggler/` so the fix was committed directly to the Camoufox repo.
+
+---
+
+## Runtime Errors (Non-Breaking)
+
+### SearchService Errors
+**Error**: `JSON error: missing field 'recordType' at line 1 column 114`
+
+**Root Cause**: The `patches/no-search-engines.patch` intentionally returns a minimal/dummy search engine configuration to disable search engines for anti-fingerprinting purposes. This configuration is incomplete and causes SearchService to fail initialization.
+
+**Status**: ⚠️ **Expected behavior** - These errors are intentional and don't affect Juggler/Playwright functionality. The search service is not needed for headless automation.
+
+---
+
 ## Summary
-- Total errors found: 2
-- Total errors fixed: 2
+- Total build errors found: 2 (compile-time)
+- Total build errors fixed: 2
+- Total runtime errors found: 3 (ESM migration)
+- Total runtime errors fixed: 3
 - Patches requiring regeneration: 1
   - `patches/webgl-spoofing.patch`
-- Additions requiring updates: 1
-  - `additions/juggler/screencast/nsScreencastService.cpp`
+- Additions requiring updates: 4
+  - `additions/juggler/screencast/nsScreencastService.cpp` (compile fix)
+  - `additions/juggler/components/Juggler.sys.mjs` (ESM migration)
+  - `additions/juggler/content/PageAgent.sys.mjs` (ESM migration)
+  - `additions/juggler/content/Runtime.sys.mjs` (ESM migration)
 
