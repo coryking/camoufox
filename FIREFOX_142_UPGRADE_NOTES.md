@@ -250,3 +250,4 @@ When upgrading Firefox, build system changes often break patches. For example, t
 - `patches/voice-spoofing.patch` - Applied cleanly (Web Speech API voice spoofing)
 - `patches/webgl-spoofing.patch` - **FIXED** - Updated for Firefox 141 RFP WebGL changes (MaskConfig takes precedence over RFP)
 - `patches/webrtc-ip-spoofing.patch` - Applied (WebRTC IP spoofing)
+- `patches/windows-theming-bug-modified.patch` - Applied (Windows theming and branding modifications)
