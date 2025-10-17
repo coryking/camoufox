@@ -11,7 +11,7 @@
 - `patches/audio-context-spoofing.patch` - **FIXED** - Updated for new SPHINX_TREES line in dom/media/moz.build
 - `patches/font-hijacker.patch` - **FIXED** - Updated for Firefox 142 build system changes (CONFIGURE_SUBST_FILES block removed from layout/style/moz.build)
 - `patches/force-default-pointer.patch` - Applied with 23-line offset (forces browser to always report fine pointer capabilities)
-- `patches/geolocation-spoofing.patch` - **FIXED** - Updated for Firefox 142 GTK configuration block changes in dom/geolocation/moz.build
+- `patches/geolocation-spoofing.patch` - **FIXED** - Updated for Firefox 142 GTK configuration block changes and corrected LOCAL_INCLUDES alphabetical ordering ("/camoucfg" must come before "/dom/base" and "/dom/ipc") in dom/geolocation/moz.build
 - `patches/global-style-sheets.patch` - Applied with 20-line offset
 - `patches/librewolf/ui-patches/handlers.patch` - Applied cleanly (removes 190 lines of default handlers)
 - `patches/librewolf/ui-patches/hide-default-browser.patch` - Applied with 6-line offset
