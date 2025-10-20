@@ -691,4 +691,10 @@ function emitEvent(event, ...args) {
     listener.call(null, ...args);
 }
 
+// Support both ES module import and loadSubScript() for worker contexts
+// When loaded via loadSubScript(), this assignment makes Runtime globally available
+if (typeof this !== 'undefined') {
+  this.Runtime = Runtime;
+}
+
 export { Runtime };

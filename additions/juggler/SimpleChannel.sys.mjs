@@ -253,4 +253,10 @@ class SimpleChannel {
   }
 }
 
+// Support both ES module import and loadSubScript() for worker contexts
+// When loaded via loadSubScript(), this assignment makes SimpleChannel globally available
+if (typeof this !== 'undefined') {
+  this.SimpleChannel = SimpleChannel;
+}
+
 export { SimpleChannel };
