@@ -115,6 +115,7 @@ def public_ip(proxy: Optional[str] = None) -> str:
             ip = resp.text.strip()
             validate_ip(ip)
             return ip
-        except (requests.exceptions.ProxyError, requests.RequestException, InvalidIP) as exception:
-            pass
+        except (requests.exceptions.ProxyError, requests.RequestException, InvalidIP) as e:
+            exception = e
+
     raise InvalidIP(f"Failed to get IP address: {exception}")
