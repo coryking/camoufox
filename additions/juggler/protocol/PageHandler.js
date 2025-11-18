@@ -545,7 +545,7 @@ export class PageHandler {
       for (const type of types) {
         if (type === 'mousemove' && ChromeUtils.camouGetBool('humanize', false)) {
           let trajectory = ChromeUtils.camouGetMouseTrajectory(this._lastTrackedPos.x, this._lastTrackedPos.y, x, y);
-          for (let i = 2; i < trajectory.length - 2; i += 2) {
+          for (let i = 2; i < trajectory.length; i += 2) {
             let currentX = trajectory[i];
             let currentY = trajectory[i + 1];
             // Skip movement that is out of bounds
