@@ -7,6 +7,7 @@ const {checkScheme} = ChromeUtils.importESModule("chrome://juggler/content/proto
 const {Helper} = ChromeUtils.importESModule('chrome://juggler/content/Helper.js');
 
 const helper = new Helper();
+const EXCLUDED_DBG = ['Page.navigationStarted', 'Page.frameAttached', 'Runtime.executionContextCreated', 'Runtime.console', 'Page.navigationAborted', 'Page.eventFired'];
 
 export class Dispatcher {
   /**
@@ -18,6 +19,47 @@ export class Dispatcher {
     this._connection.onclose = this._dispose.bind(this);
     this._sessions = new Map();
     this._rootSession = new ProtocolSession(this, undefined);
+  }
+
+  formatDate(date) {
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
+  truncateObject(obj, maxDepth = 8, maxLength = 100) {
+    if (maxDepth < 0) return '[Max Depth Reached]';
+    
+    if (typeof obj !== 'object' || obj === null) {
+      return typeof obj === 'string' ? this.truncateString(obj, maxLength) : obj;
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.slice(0, 10).map(item => this.truncateObject(item, maxDepth - 1, maxLength));
+    }
+    
+    const truncated = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (Object.keys(truncated).length >= 10) {
+        truncated['...'] = '[Truncated]';
+        break;
+      }
+      truncated[key] = this.truncateObject(value, maxDepth - 1, maxLength);
+    }
+    return truncated;
+  }
+
+  truncateString(str, maxLength) {
+    if (str.length <= maxLength) return str;
+    ChromeUtils.camouDebug(`String length: ${str.length}`);
+    return str.substr(0, maxLength) + '... [truncated]';
+  }
+
+  safeJsonStringify(data) {
+    try {
+      return JSON.stringify(this.truncateObject(data), null, 2);
+    } catch (error) {
+      return `[Unable to stringify: ${error.message}]`;
+    }
   }
 
   rootSession() {
@@ -45,6 +87,11 @@ export class Dispatcher {
 
   async _dispatch(event) {
     const data = JSON.parse(event.data);
+
+    if (ChromeUtils.isCamouDebug())
+      ChromeUtils.camouDebug(`[${new Date().toLocaleString()}]`
+        + `\nReceived message: ${this.safeJsonStringify(data)}`);
+
     const id = data.id;
     const sessionId = data.sessionId;
     delete data.sessionId;
@@ -87,6 +134,11 @@ export class Dispatcher {
 
   _emitEvent(sessionId, eventName, params) {
     const [domain, eName] = eventName.split('.');
+
+    if (ChromeUtils.isCamouDebug() && !EXCLUDED_DBG.includes(eventName) && domain !== 'Network') 
+        ChromeUtils.camouDebug(`[${new Date().toLocaleString()}]`
+          + `\nInternal event: ${eventName}\nParams: ${JSON.stringify(params, null, 2)}`);
+    
     const scheme = protocol.domains[domain] ? protocol.domains[domain].events[eName] : null;
     if (!scheme)
       throw new Error(`ERROR: event '${eventName}' is not supported`);

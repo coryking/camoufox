@@ -80,10 +80,10 @@ export class PageHandler {
     }
 
     this._isDragging = false;
-
+    
     // Camoufox: set a random default cursor position
     let random_val = (max_val) => Math.floor(Math.random() * max_val);
-
+    
     // Try to fetch the viewport size
     this._defaultCursorPos = {
       x: random_val(this._pageTarget._viewportSize?.width || 1280),
@@ -91,6 +91,9 @@ export class PageHandler {
     };
     this._lastMousePosition = { ...this._defaultCursorPos };
     this._lastTrackedPos = { ...this._defaultCursorPos };
+    
+    this._camouMemorySaver = ChromeUtils.camouGetBool('memorysaver', false);
+    this._camouHumanize = ChromeUtils.camouGetBool('humanize', false);
 
     this._reportedFrameIds = new Set();
     this._networkEventsForUnreportedFrameIds = new Map();
@@ -437,7 +440,7 @@ export class PageHandler {
     });
     unsubscribe();
 
-    if (ChromeUtils.camouGetBool('memorysaver', false)) {
+    if (this._camouMemorySaver) {
       ChromeUtils.camouDebug('Clearing all memory...');
       Services.obs.notifyObservers(null, "child-gc-request");
       Cu.forceGC();
@@ -543,22 +546,22 @@ export class PageHandler {
         await watcher.ensureEvent(eventType, eventObject => eventObject.jugglerEventId === jugglerEventId);
       };
       for (const type of types) {
-        if (type === 'mousemove' && ChromeUtils.camouGetBool('humanize', false)) {
+        if (type === 'mousemove' && this._camouHumanize) {
           let trajectory = ChromeUtils.camouGetMouseTrajectory(this._lastTrackedPos.x, this._lastTrackedPos.y, x, y);
           for (let i = 2; i < trajectory.length - 2; i += 2) {
             let currentX = trajectory[i];
             let currentY = trajectory[i + 1];
             // Skip movement that is out of bounds
-            if (currentX < 0 || currentY < 0 || currentX > boundingBox.width || currentY > boundingBox.height) {
+            if (currentX < 0 || currentY < 0 || currentX > boundingBox.width || currentY > boundingBox.height) 
               continue;
-            }
+            
             await sendMouseEvent(type, currentX, currentY);
             await new Promise(resolve => setTimeout(resolve, 10));
           }
-        } else {
-          // Call the function for the current event
           await sendMouseEvent(type, x, y);
-        }
+        } 
+        else 
+          await sendMouseEvent(type, x, y);
       }
       await watcher.dispose();
     };
@@ -580,8 +583,8 @@ export class PageHandler {
         // NOTE: since this won't go inside the renderer, there's no need to wait for ACK.
         win.windowUtils.sendMouseEvent(
           'mousemove',
-          this._defaultCursorPos.x,
-          this._defaultCursorPos.y,
+          this._defaultCursorPos.x /* x */,
+          this._defaultCursorPos.y /* y */,
           button,
           clickCount,
           modifiers,
@@ -618,7 +621,7 @@ export class PageHandler {
         const watcher = new EventWatcher(this._pageEventSink, ['dragstart', 'juggler-drag-finalized'], this._pendingEventWatchers);
         await sendEvents(['mousemove']);
         this._lastTrackedPos = { x, y };
-
+        
         // The order of events after 'mousemove' is sent:
         // 1. [dragstart] - might or might NOT be emitted
         // 2. [mousemove] - always emitted. This was awaited as part of `sendEvents` call.

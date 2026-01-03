@@ -12,8 +12,8 @@ const Cr = Components.results;
 
 const helper = new Helper();
 
-const IDENTITY_NAME = 'Camoufox ';
-const HUNDRED_YEARS = 1000 * 60 * 60 * 24 * 365 * 100;
+const IDENTITY_NAME = 'CAMOUFOX ';
+const HUNDRED_YEARS = 60 * 60 * 24 * 365 * 100;
 
 const ALL_PERMISSIONS = [
   'geo',
@@ -397,16 +397,20 @@ export class PageTarget {
     this._linkedBrowser = tab.linkedBrowser;
     this._browserContext = browserContext;
     this._viewportSize = undefined;
+
+    this._camou_window_innerWidth = ChromeUtils.camouGetInt("window.innerWidth");
+    this._camou_window_innerHeight = ChromeUtils.camouGetInt("window.innerHeight");
+    this._camou_window_outerWidth = ChromeUtils.camouGetInt("window.outerWidth");
+    this._camou_window_outerHeight = ChromeUtils.camouGetInt("window.outerHeight");
+    
     // Set the viewport size to Camoufox's default value.
-    if (
-      ChromeUtils.camouGetInt("window.innerWidth")
-      || ChromeUtils.camouGetInt("window.innerHeight")
-    ) {
+    if (this._camou_window_innerWidth || this._camou_window_innerHeight) {
       this._viewportSize = {
-        width: ChromeUtils.camouGetInt("window.innerWidth") || 1280,
-        height: ChromeUtils.camouGetInt("window.innerHeight") || 720,
+        width: this._camou_window_innerWidth || 1280,
+        height: this._camou_window_innerHeight || 720,
       };
     }
+
     this._zoom = 1;
     this._initialDPPX = this._linkedBrowser.browsingContext.overrideDPPX;
     this._url = 'about:blank';
@@ -560,9 +564,7 @@ export class PageTarget {
   }
 
   updateDPPXOverride(browsingContext = undefined) {
-    browsingContext ||= this._linkedBrowser.browsingContext;
-    const dppx = this._zoom * (this._browserContext.deviceScaleFactor || this._initialDPPX);
-    browsingContext.overrideDPPX = dppx;
+    (browsingContext || this._linkedBrowser.browsingContext).overrideDPPX = this._zoom * (this._browserContext.deviceScaleFactor || this._initialDPPX);
   }
 
   async updateZoom(browsingContext = undefined) {
@@ -605,15 +607,13 @@ export class PageTarget {
     // Otherwise, explicitly set page viewport prevales over browser context
     // default viewport.
 
-    // Camoufox is already handling viewport size, so we don't need to set it here.
     if (
-      ChromeUtils.camouGetInt("window.outerWidth") ||
-      ChromeUtils.camouGetInt("window.outerHeight") ||
-      ChromeUtils.camouGetInt("window.innerWidth") ||
-      ChromeUtils.camouGetInt("window.innerHeight")
-    ) {
+      this._camou_window_outerWidth ||
+      this._camou_window_outerHeight ||
+      this._camou_window_innerWidth ||
+      this._camou_window_innerHeight
+    )
       return;
-    }
 
     const viewportSize = this._viewportSize || this._browserContext.defaultViewportSize;
     if (viewportSize) {
@@ -663,7 +663,7 @@ export class PageTarget {
   }
 
   updateColorSchemeOverride(browsingContext = undefined) {
-    (browsingContext || this._linkedBrowser.browsingContext).prefersColorSchemeOverride = this.colorScheme || this._browserContext.colorScheme || 'none';
+    (browsingContext || this._linkedBrowser.browsingContext).prefersColorSchemeOverride = this.colorScheme || this._browserContext.colorScheme || 'dark';
   }
 
   setReducedMotion(reducedMotion) {
@@ -975,6 +975,8 @@ class BrowserContext {
       settings: {},
     };
     this.pages = new Set();
+    this._camou_window_innerWidth = ChromeUtils.camouGetInt("window.innerWidth");
+    this._camou_window_innerHeight = ChromeUtils.camouGetInt("window.innerHeight");
   }
 
   _updateCrossProcessCookie() {
@@ -1081,6 +1083,11 @@ class BrowserContext {
   }
 
   async setDefaultViewport(viewport) {
+    if (this._camou_window_innerWidth || this._camou_window_innerHeight) {
+      if (viewport.viewportSize?.width == 1280 && viewport.viewportSize?.height == 720)
+        return;
+    }
+
     this.defaultViewportSize = viewport ? viewport.viewportSize : undefined;
     this.deviceScaleFactor = viewport ? viewport.deviceScaleFactor : undefined;
     await Promise.all(Array.from(this.pages).map(page => page.updateViewportSize()));
@@ -1174,7 +1181,7 @@ class BrowserContext {
         secure,
         cookie.httpOnly || false,
         cookie.expires === undefined || cookie.expires === -1 /* isSession */,
-        cookie.expires === undefined ? Date.now() + HUNDRED_YEARS : cookie.expires,
+        cookie.expires === undefined ? Date.now() + HUNDRED_YEARS : cookie.expires * 1000,
         { userContextId: this.userContextId || undefined } /* originAttributes */,
         protocolToSameSite[cookie.sameSite],
         Ci.nsICookie.SCHEME_UNSET
@@ -1204,7 +1211,7 @@ class BrowserContext {
         value: cookie.value,
         domain: cookie.host,
         path: cookie.path,
-        expires: cookie.isSession ? -1 : cookie.expiry,
+        expires: cookie.isSession ? -1 : cookie.expiry / 1000,
         size: cookie.name.length + cookie.value.length,
         httpOnly: cookie.isHttpOnly,
         secure: cookie.isSecure,

@@ -412,8 +412,8 @@ class Frame {
 
     this.allowMW = ChromeUtils.camouGetBool('allowMainWorld', false);
     this.forceScopeAccess = ChromeUtils.camouGetBool('forceScopeAccess', false);
-
     this.masterSandbox = undefined;
+
     this._lastCommittedNavigationId = null;
     this._pendingNavigationId = null;
 
@@ -526,27 +526,27 @@ class Frame {
 
   _createIsolatedContext(name, useMaster=false) {
     let sandbox;
-    // Camoufox: Use the master sandbox (with system principle scope access)
-    if (useMaster && this.forceScopeAccess) {
+
+    if (useMaster && this.forceScopeAccess)
       sandbox = this.getMasterSandbox();
-    } else {
-      // Standard access (run in domWindow principal)
+    else
       sandbox = Cu.Sandbox([this.domWindow()], {
         sandboxPrototype: this.domWindow(),
         wantComponents: false,
         wantExportHelpers: false,
         wantXrays: true,
       });
-    }
+
     const world = this._runtime.createExecutionContext(this.domWindow(), sandbox, {
       frameId: this.id(),
       name,
     });
-    // Camoufox: Create a main world for the isolated context
+
     if (this.allowMW) {
       const mainWorld = this._runtime.createMW(this.domWindow(), this.domWindow());
       world.mainEquivalent = mainWorld;
     }
+    
     this._worldNameToContext.set(name, world);
     return world;
   }
@@ -584,7 +584,7 @@ class Frame {
     for (const context of this._worldNameToContext.values())
       this._runtime.destroyExecutionContext(context);
     this._worldNameToContext.clear();
-    // Camoufox: Scope the initial execution context to prevent leaks
+
     this._createIsolatedContext('', true);
     for (const [name, world] of this._frameTree._isolatedWorlds) {
       if (name)

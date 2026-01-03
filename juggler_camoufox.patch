@@ -1,0 +1,574 @@
+diff --git a/browser_patches/firefox/juggler/TargetRegistry.js b/browser_patches/firefox/juggler/TargetRegistry.js
+index 55afdad86..500901683 100644
+--- a/browser_patches/firefox/juggler/TargetRegistry.js
++++ b/browser_patches/firefox/juggler/TargetRegistry.js
+@@ -12,7 +12,7 @@ const Cr = Components.results;
+ 
+ const helper = new Helper();
+ 
+-const IDENTITY_NAME = 'JUGGLER ';
++const IDENTITY_NAME = 'CAMOUFOX ';
+ const HUNDRED_YEARS = 60 * 60 * 24 * 365 * 100;
+ 
+ const ALL_PERMISSIONS = [
+@@ -397,6 +397,20 @@ export class PageTarget {
+     this._linkedBrowser = tab.linkedBrowser;
+     this._browserContext = browserContext;
+     this._viewportSize = undefined;
++
++    this._camou_window_innerWidth = ChromeUtils.camouGetInt("window.innerWidth");
++    this._camou_window_innerHeight = ChromeUtils.camouGetInt("window.innerHeight");
++    this._camou_window_outerWidth = ChromeUtils.camouGetInt("window.outerWidth");
++    this._camou_window_outerHeight = ChromeUtils.camouGetInt("window.outerHeight");
++    
++    // Set the viewport size to Camoufox's default value.
++    if (this._camou_window_innerWidth || this._camou_window_innerHeight) {
++      this._viewportSize = {
++        width: this._camou_window_innerWidth || 1280,
++        height: this._camou_window_innerHeight || 720,
++      };
++    }
++
+     this._zoom = 1;
+     this._initialDPPX = this._linkedBrowser.browsingContext.overrideDPPX;
+     this._url = 'about:blank';
+@@ -550,9 +564,7 @@ export class PageTarget {
+   }
+ 
+   updateDPPXOverride(browsingContext = undefined) {
+-    browsingContext ||= this._linkedBrowser.browsingContext;
+-    const dppx = this._zoom * (this._browserContext.deviceScaleFactor || this._initialDPPX);
+-    browsingContext.overrideDPPX = dppx;
++    (browsingContext || this._linkedBrowser.browsingContext).overrideDPPX = this._zoom * (this._browserContext.deviceScaleFactor || this._initialDPPX);
+   }
+ 
+   async updateZoom(browsingContext = undefined) {
+@@ -594,6 +606,15 @@ export class PageTarget {
+     // The "default size" (1) is only respected when the page is opened.
+     // Otherwise, explicitly set page viewport prevales over browser context
+     // default viewport.
++
++    if (
++      this._camou_window_outerWidth ||
++      this._camou_window_outerHeight ||
++      this._camou_window_innerWidth ||
++      this._camou_window_innerHeight
++    )
++      return;
++
+     const viewportSize = this._viewportSize || this._browserContext.defaultViewportSize;
+     if (viewportSize) {
+       const {width, height} = viewportSize;
+@@ -642,7 +663,7 @@ export class PageTarget {
+   }
+ 
+   updateColorSchemeOverride(browsingContext = undefined) {
+-    (browsingContext || this._linkedBrowser.browsingContext).prefersColorSchemeOverride = this.colorScheme || this._browserContext.colorScheme || 'none';
++    (browsingContext || this._linkedBrowser.browsingContext).prefersColorSchemeOverride = this.colorScheme || this._browserContext.colorScheme || 'dark';
+   }
+ 
+   setReducedMotion(reducedMotion) {
+@@ -954,6 +975,8 @@ class BrowserContext {
+       settings: {},
+     };
+     this.pages = new Set();
++    this._camou_window_innerWidth = ChromeUtils.camouGetInt("window.innerWidth");
++    this._camou_window_innerHeight = ChromeUtils.camouGetInt("window.innerHeight");
+   }
+ 
+   _updateCrossProcessCookie() {
+@@ -1060,6 +1083,11 @@ class BrowserContext {
+   }
+ 
+   async setDefaultViewport(viewport) {
++    if (this._camou_window_innerWidth || this._camou_window_innerHeight) {
++      if (viewport.viewportSize?.width == 1280 && viewport.viewportSize?.height == 720)
++        return;
++    }
++
+     this.defaultViewportSize = viewport ? viewport.viewportSize : undefined;
+     this.deviceScaleFactor = viewport ? viewport.deviceScaleFactor : undefined;
+     await Promise.all(Array.from(this.pages).map(page => page.updateViewportSize()));
+diff --git a/browser_patches/firefox/juggler/components/Juggler.js b/browser_patches/firefox/juggler/components/Juggler.js
+index 759595861..d1dfaacf5 100644
+--- a/browser_patches/firefox/juggler/components/Juggler.js
++++ b/browser_patches/firefox/juggler/components/Juggler.js
+@@ -5,6 +5,7 @@
+ // Load SimpleChannel in browser-process global.
+ Services.scriptloader.loadSubScript('chrome://juggler/content/SimpleChannel.js');
+ 
++const {AppConstants} = ChromeUtils.importESModule("resource://gre/modules/AppConstants.sys.mjs");
+ const {XPCOMUtils} = ChromeUtils.importESModule("resource://gre/modules/XPCOMUtils.sys.mjs");
+ const {ComponentUtils} = ChromeUtils.importESModule("resource://gre/modules/ComponentUtils.sys.mjs");
+ const {Dispatcher} = ChromeUtils.importESModule("chrome://juggler/content/protocol/Dispatcher.js");
+@@ -135,15 +136,24 @@ export class Juggler {
+           },
+         };
+         pipe.init(connection);
++        ChromeUtils.camouDebug('Juggler pipe initialized');
++
+         const dispatcher = new Dispatcher(connection);
++        ChromeUtils.camouDebug('Dispatcher created');
++
+         browserHandler = new BrowserHandler(dispatcher.rootSession(), dispatcher, targetRegistry, browserStartupFinishedPromise, () => {
++          ChromeUtils.camouDebug('BrowserHandler cleanup callback called');
+           if (this._silent)
+             Services.startup.exitLastWindowClosingSurvivalArea();
+           connection.onclose();
+           pipe.stop();
+           pipeStopped = true;
+         });
++        ChromeUtils.camouDebug('BrowserHandler created');
++
+         dispatcher.rootSession().setHandler(browserHandler);
++        ChromeUtils.camouDebug('BrowserHandler set as root session handler');
++        
+         loadStyleSheet();
+         dump(`\nJuggler listening to the pipe\n`);
+         break;
+diff --git a/browser_patches/firefox/juggler/content/FrameTree.js b/browser_patches/firefox/juggler/content/FrameTree.js
+index 09a95b354..f45ec40ea 100644
+--- a/browser_patches/firefox/juggler/content/FrameTree.js
++++ b/browser_patches/firefox/juggler/content/FrameTree.js
+@@ -410,6 +410,10 @@ class Frame {
+       parentFrame._children.add(this);
+     }
+ 
++    this.allowMW = ChromeUtils.camouGetBool('allowMainWorld', false);
++    this.forceScopeAccess = ChromeUtils.camouGetBool('forceScopeAccess', false);
++    this.masterSandbox = undefined;
++
+     this._lastCommittedNavigationId = null;
+     this._pendingNavigationId = null;
+ 
+@@ -503,18 +507,46 @@ class Frame {
+     };
+   }
+ 
+-  _createIsolatedContext(name) {
+-    const principal = [this.domWindow()]; // extended principal
+-    const sandbox = Cu.Sandbox(principal, {
+-      sandboxPrototype: this.domWindow(),
+-      wantComponents: false,
+-      wantExportHelpers: false,
+-      wantXrays: true,
+-    });
++  // Camoufox: Add a "God mode" master sandbox with it's own compartment
++  getMasterSandbox() {
++    if (!this.masterSandbox) {
++      this.masterSandbox = Cu.Sandbox(
++        Services.scriptSecurityManager.getSystemPrincipal(),
++        {
++          sandboxPrototype: this.domWindow(),
++          wantComponents: false,
++          wantExportHelpers: false,
++          wantXrays: true,
++          freshCompartment: true,
++        }
++      );
++    }
++    return this.masterSandbox;
++  }
++
++  _createIsolatedContext(name, useMaster=false) {
++    let sandbox;
++
++    if (useMaster && this.forceScopeAccess)
++      sandbox = this.getMasterSandbox();
++    else
++      sandbox = Cu.Sandbox([this.domWindow()], {
++        sandboxPrototype: this.domWindow(),
++        wantComponents: false,
++        wantExportHelpers: false,
++        wantXrays: true,
++      });
++
+     const world = this._runtime.createExecutionContext(this.domWindow(), sandbox, {
+       frameId: this.id(),
+       name,
+     });
++
++    if (this.allowMW) {
++      const mainWorld = this._runtime.createMW(this.domWindow(), this.domWindow());
++      world.mainEquivalent = mainWorld;
++    }
++    
+     this._worldNameToContext.set(name, world);
+     return world;
+   }
+@@ -553,10 +585,7 @@ class Frame {
+       this._runtime.destroyExecutionContext(context);
+     this._worldNameToContext.clear();
+ 
+-    this._worldNameToContext.set('', this._runtime.createExecutionContext(this.domWindow(), this.domWindow(), {
+-      frameId: this._frameId,
+-      name: '',
+-    }));
++    this._createIsolatedContext('', true);
+     for (const [name, world] of this._frameTree._isolatedWorlds) {
+       if (name)
+         this._createIsolatedContext(name);
+diff --git a/browser_patches/firefox/juggler/content/PageAgent.js b/browser_patches/firefox/juggler/content/PageAgent.js
+index 2ff5e6b92..60bb89fe8 100644
+--- a/browser_patches/firefox/juggler/content/PageAgent.js
++++ b/browser_patches/firefox/juggler/content/PageAgent.js
+@@ -549,7 +549,7 @@ export class PageAgent {
+         false /*aIgnoreRootScrollFrame*/,
+         0.0 /*pressure*/,
+         0 /*inputSource*/,
+-        true /*isDOMEventSynthesized*/,
++        false /*isDOMEventSynthesized*/,
+         false /*isWidgetEventSynthesized*/,
+         0 /*buttons*/,
+         win.windowUtils.DEFAULT_MOUSE_POINTER_ID /* pointerIdentifier */,
+diff --git a/browser_patches/firefox/juggler/content/Runtime.js b/browser_patches/firefox/juggler/content/Runtime.js
+index ad8720a1d..cd764b2aa 100644
+--- a/browser_patches/firefox/juggler/content/Runtime.js
++++ b/browser_patches/firefox/juggler/content/Runtime.js
+@@ -76,6 +76,8 @@ class Runtime {
+       onExecutionContextDestroyed: createEvent(),
+       onBindingCalled: createEvent(),
+     };
++
++    this.allowMW = ChromeUtils.camouGetBool('allowMainWorld', false);
+   }
+ 
+   executionContexts() {
+@@ -99,6 +101,31 @@ class Runtime {
+     const executionContext = this.findExecutionContext(executionContextId);
+     if (!executionContext)
+       throw new Error('Failed to find execution context with id = ' + executionContextId);
++
++    if (
++        this.allowMW &&
++        functionDeclaration.includes('utilityScript.evaluate') && 
++        args.length >= 4 && 
++        args[3].value && 
++        typeof args[3].value === 'string' && 
++        args[3].value.startsWith('mw:')) {
++      ChromeUtils.camouDebug(`Evaluating in main world: ${args[3].value}`);
++      const mainWorldScript = args[3].value.substring(3);
++      
++      // Get the main world execution context
++      const mainContext = executionContext.mainEquivalent;
++      if (!mainContext) 
++        throw new Error(`Main world injection is not enabled.`);
++      
++      // Extract arguments for the main world function
++      const functionArgs = args[5]?.value?.a || [];
++      const exceptionDetails = {};
++      const result = mainContext.executeInGlobal(mainWorldScript, functionArgs, exceptionDetails);
++      if (!result)
++        return {exceptionDetails};
++      return {result};
++    }
++
+     const exceptionDetails = {};
+     let result = await executionContext.evaluateFunction(functionDeclaration, args, exceptionDetails);
+     if (!result)
+@@ -164,7 +191,7 @@ class Runtime {
+           emitEvent(this.events.onRuntimeError, {
+             executionContext,
+             message: message.errorMessage,
+-            stack: message.stack.toString(),
++            stack: message.stack?.toString() || '',
+           });
+         }
+       },
+@@ -282,6 +309,11 @@ class Runtime {
+     return context;
+   }
+ 
++  createMW(domWindow, contextGlobal) {
++    const context = new MainWorldContext(this, domWindow, contextGlobal);
++    return context;
++  }
++
+   findExecutionContext(executionContextId) {
+     const executionContext = this._executionContexts.get(executionContextId);
+     if (!executionContext)
+@@ -306,6 +338,68 @@ class Runtime {
+   }
+ }
+ 
++class MainWorldContext {
++  constructor(runtime, domWindow, contextGlobal) {
++    this._runtime = runtime;
++    this._domWindow = domWindow;
++    this._contextGlobal = contextGlobal;
++    this._debuggee = runtime._debugger.addDebuggee(contextGlobal);
++  }
++
++  _getResult(completionValue, exceptionDetails = {}) {
++    if (!completionValue) {
++      exceptionDetails.text = "Evaluation terminated";
++      return {success: false, obj: null};
++    }
++
++    if (completionValue.throw) {
++      const result = this._debuggee.executeInGlobalWithBindings(`
++        (function(error) {
++          try {
++            if (error instanceof Error) {
++              return error.toString();
++            }
++            return String(error);
++          } catch(e) {
++            return "Unknown error occurred";
++          }
++        })(e)
++      `, { e: completionValue.throw });
++      
++      exceptionDetails.text = result.return || "Unknown error";
++      return {success: false, obj: null};
++    }
++
++    return {success: true, obj: completionValue.return};
++  }
++  
++  executeInGlobal(script, args = [], exceptionDetails = {}) {
++    try {
++      const wrappedScript = `
++        (() => {
++          let _s = (${script});
++          let _r = typeof _s === 'function'
++            ? _s(${args.map(arg => JSON.stringify(arg)).join(', ')})
++            : _s;
++          return JSON.stringify({value: _r});
++        })()
++      `;
++
++      const result = this._debuggee.executeInGlobal(wrappedScript);
++      
++      let {success, obj} = this._getResult(result, exceptionDetails);
++      if (!success) {
++        return {exceptionDetails};
++      }
++      return JSON.parse(obj);
++    } catch (e) {
++      exceptionDetails.text = e.message;
++      exceptionDetails.stack = e.stack;
++      return {exceptionDetails};
++    }
++  }
++}
++
+ class ExecutionContext {
+   constructor(runtime, domWindow, contextGlobal, auxData) {
+     this._runtime = runtime;
+@@ -338,6 +432,8 @@ class ExecutionContext {
+ 
+       return hasSymbol ? undefined : result;
+     }).bind(null, JSON.stringify.bind(JSON))`).return;
++
++    this.mainEquivalent = undefined;
+   }
+ 
+   id() {
+diff --git a/browser_patches/firefox/juggler/protocol/Dispatcher.js b/browser_patches/firefox/juggler/protocol/Dispatcher.js
+index 7a65d0a11..baefdcb49 100644
+--- a/browser_patches/firefox/juggler/protocol/Dispatcher.js
++++ b/browser_patches/firefox/juggler/protocol/Dispatcher.js
+@@ -7,6 +7,7 @@ const {checkScheme} = ChromeUtils.importESModule("chrome://juggler/content/proto
+ const {Helper} = ChromeUtils.importESModule('chrome://juggler/content/Helper.js');
+ 
+ const helper = new Helper();
++const EXCLUDED_DBG = ['Page.navigationStarted', 'Page.frameAttached', 'Runtime.executionContextCreated', 'Runtime.console', 'Page.navigationAborted', 'Page.eventFired'];
+ 
+ export class Dispatcher {
+   /**
+@@ -20,6 +21,47 @@ export class Dispatcher {
+     this._rootSession = new ProtocolSession(this, undefined);
+   }
+ 
++  formatDate(date) {
++    const pad = (num) => String(num).padStart(2, '0');
++    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
++  }
++
++  truncateObject(obj, maxDepth = 8, maxLength = 100) {
++    if (maxDepth < 0) return '[Max Depth Reached]';
++    
++    if (typeof obj !== 'object' || obj === null) {
++      return typeof obj === 'string' ? this.truncateString(obj, maxLength) : obj;
++    }
++    
++    if (Array.isArray(obj)) {
++      return obj.slice(0, 10).map(item => this.truncateObject(item, maxDepth - 1, maxLength));
++    }
++    
++    const truncated = {};
++    for (const [key, value] of Object.entries(obj)) {
++      if (Object.keys(truncated).length >= 10) {
++        truncated['...'] = '[Truncated]';
++        break;
++      }
++      truncated[key] = this.truncateObject(value, maxDepth - 1, maxLength);
++    }
++    return truncated;
++  }
++
++  truncateString(str, maxLength) {
++    if (str.length <= maxLength) return str;
++    ChromeUtils.camouDebug(`String length: ${str.length}`);
++    return str.substr(0, maxLength) + '... [truncated]';
++  }
++
++  safeJsonStringify(data) {
++    try {
++      return JSON.stringify(this.truncateObject(data), null, 2);
++    } catch (error) {
++      return `[Unable to stringify: ${error.message}]`;
++    }
++  }
++
+   rootSession() {
+     return this._rootSession;
+   }
+@@ -45,6 +87,11 @@ export class Dispatcher {
+ 
+   async _dispatch(event) {
+     const data = JSON.parse(event.data);
++
++    if (ChromeUtils.isCamouDebug())
++      ChromeUtils.camouDebug(`[${new Date().toLocaleString()}]`
++        + `\nReceived message: ${this.safeJsonStringify(data)}`);
++
+     const id = data.id;
+     const sessionId = data.sessionId;
+     delete data.sessionId;
+@@ -87,6 +134,11 @@ export class Dispatcher {
+ 
+   _emitEvent(sessionId, eventName, params) {
+     const [domain, eName] = eventName.split('.');
++
++    if (ChromeUtils.isCamouDebug() && !EXCLUDED_DBG.includes(eventName) && domain !== 'Network') 
++        ChromeUtils.camouDebug(`[${new Date().toLocaleString()}]`
++          + `\nInternal event: ${eventName}\nParams: ${JSON.stringify(params, null, 2)}`);
++    
+     const scheme = protocol.domains[domain] ? protocol.domains[domain].events[eName] : null;
+     if (!scheme)
+       throw new Error(`ERROR: event '${eventName}' is not supported`);
+diff --git a/browser_patches/firefox/juggler/protocol/PageHandler.js b/browser_patches/firefox/juggler/protocol/PageHandler.js
+index 1dab7d880..8221f3e0c 100644
+--- a/browser_patches/firefox/juggler/protocol/PageHandler.js
++++ b/browser_patches/firefox/juggler/protocol/PageHandler.js
+@@ -80,7 +80,20 @@ export class PageHandler {
+     }
+ 
+     this._isDragging = false;
+-    this._lastMousePosition = { x: 0, y: 0 };
++    
++    // Camoufox: set a random default cursor position
++    let random_val = (max_val) => Math.floor(Math.random() * max_val);
++    
++    // Try to fetch the viewport size
++    this._defaultCursorPos = {
++      x: random_val(this._pageTarget._viewportSize?.width || 1280),
++      y: random_val(this._pageTarget._viewportSize?.height || 720),
++    };
++    this._lastMousePosition = { ...this._defaultCursorPos };
++    this._lastTrackedPos = { ...this._defaultCursorPos };
++    
++    this._camouMemorySaver = ChromeUtils.camouGetBool('memorysaver', false);
++    this._camouHumanize = ChromeUtils.camouGetBool('humanize', false);
+ 
+     this._reportedFrameIds = new Set();
+     this._networkEventsForUnreportedFrameIds = new Map();
+@@ -427,6 +440,14 @@ export class PageHandler {
+     });
+     unsubscribe();
+ 
++    if (this._camouMemorySaver) {
++      ChromeUtils.camouDebug('Clearing all memory...');
++      Services.obs.notifyObservers(null, "child-gc-request");
++      Cu.forceGC();
++      Services.obs.notifyObservers(null, "child-cc-request");
++      Cu.forceCC();
++    }
++
+     return {
+       navigationId: sameDocumentNavigation ? null : navigationId,
+     };
+@@ -505,28 +526,43 @@ export class PageHandler {
+         await helper.awaitTopic('apz-repaints-flushed');
+ 
+       const watcher = new EventWatcher(this._pageEventSink, types, this._pendingEventWatchers);
+-      const promises = [];
+-      for (const type of types) {
+-        // This dispatches to the renderer synchronously.
++      const sendMouseEvent = async (eventType, eventX, eventY) => {
+         const jugglerEventId = win.windowUtils.jugglerSendMouseEvent(
+-          type,
+-          x + boundingBox.left,
+-          y + boundingBox.top,
++          eventType,
++          eventX + boundingBox.left,
++          eventY + boundingBox.top,
+           button,
+           clickCount,
+           modifiers,
+           false /* aIgnoreRootScrollFrame */,
+           0.0 /* pressure */,
+           0 /* inputSource */,
+-          true /* isDOMEventSynthesized */,
++          false /* isDOMEventSynthesized */,
+           false /* isWidgetEventSynthesized */,
+           buttons,
+           win.windowUtils.DEFAULT_MOUSE_POINTER_ID /* pointerIdentifier */,
+           false /* disablePointerEvent */
+         );
+-        promises.push(watcher.ensureEvent(type, eventObject => eventObject.jugglerEventId === jugglerEventId));
++        await watcher.ensureEvent(eventType, eventObject => eventObject.jugglerEventId === jugglerEventId);
++      };
++      for (const type of types) {
++        if (type === 'mousemove' && this._camouHumanize) {
++          let trajectory = ChromeUtils.camouGetMouseTrajectory(this._lastTrackedPos.x, this._lastTrackedPos.y, x, y);
++          for (let i = 2; i < trajectory.length - 2; i += 2) {
++            let currentX = trajectory[i];
++            let currentY = trajectory[i + 1];
++            // Skip movement that is out of bounds
++            if (currentX < 0 || currentY < 0 || currentX > boundingBox.width || currentY > boundingBox.height) 
++              continue;
++            
++            await sendMouseEvent(type, currentX, currentY);
++            await new Promise(resolve => setTimeout(resolve, 10));
++          }
++          await sendMouseEvent(type, x, y);
++        } 
++        else 
++          await sendMouseEvent(type, x, y);
+       }
+-      await Promise.all(promises);
+       await watcher.dispose();
+     };
+ 
+@@ -547,15 +583,15 @@ export class PageHandler {
+         // NOTE: since this won't go inside the renderer, there's no need to wait for ACK.
+         win.windowUtils.sendMouseEvent(
+           'mousemove',
+-          0 /* x */,
+-          0 /* y */,
++          this._defaultCursorPos.x /* x */,
++          this._defaultCursorPos.y /* y */,
+           button,
+           clickCount,
+           modifiers,
+           false /* aIgnoreRootScrollFrame */,
+           0.0 /* pressure */,
+           0 /* inputSource */,
+-          true /* isDOMEventSynthesized */,
++          false /* isDOMEventSynthesized */,
+           false /* isWidgetEventSynthesized */,
+           buttons,
+           win.windowUtils.DEFAULT_MOUSE_POINTER_ID /* pointerIdentifier */,
+@@ -584,7 +620,8 @@ export class PageHandler {
+ 
+         const watcher = new EventWatcher(this._pageEventSink, ['dragstart', 'juggler-drag-finalized'], this._pendingEventWatchers);
+         await sendEvents(['mousemove']);
+-
++        this._lastTrackedPos = { x, y };
++        
+         // The order of events after 'mousemove' is sent:
+         // 1. [dragstart] - might or might NOT be emitted
+         // 2. [mousemove] - always emitted. This was awaited as part of `sendEvents` call.
